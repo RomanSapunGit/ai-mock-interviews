@@ -1,0 +1,281 @@
+_type: export
+__export_format: 4
+__export_date: 2026-04-11T20:30:00.000Z
+__export_source: insomnia.desktop.app:v2023.5.8
+resources:
+  - _id: wrk_1
+    _type: workspace
+    name: AI Mock Interviews
+    description: API for managing mock interviews and semantic question search.
+    parentId: null
+  - _id: env_1
+    _type: environment
+    name: Base Environment
+    data:
+      base_url: http://localhost:8000
+    dataPropertyOrder:
+      "&": ["base_url"]
+    color: null
+    isPrivate: false
+    parentId: wrk_1
+
+  # Questions Group
+  - _id: fld_1
+    _type: request_group
+    name: Questions
+    parentId: wrk_1
+
+  - _id: req_1
+    _type: request
+    name: Ingest & Generate Questions
+    method: POST
+    url: "{{ base_url }}/questions"
+    body:
+      mimeType: multipart/form-data
+      params:
+        - name: interview_id
+          value: "REPLACE_WITH_INTERVIEW_UUID"
+        - name: text
+          value: "Sample text to index"
+        - name: files
+          type: file
+          fileName: "path/to/first.pdf"
+        - name: files
+          type: file
+          fileName: "path/to/second.pdf"
+        - name: count
+          value: "5"
+        - name: topic
+          value: ""
+    parentId: fld_1
+
+  - _id: req_2
+    _type: request
+    name: Get Question Chunk
+    method: GET
+    url: "{{ base_url }}/questions/REPLACE_WITH_QUESTION_ID"
+    parentId: fld_1
+
+  - _id: req_3
+    _type: request
+    name: Delete Question Chunk
+    method: DELETE
+    url: "{{ base_url }}/questions/REPLACE_WITH_QUESTION_ID"
+    parentId: fld_1
+
+  # Interviews Group
+  - _id: fld_2
+    _type: request_group
+    name: Interviews
+    parentId: wrk_1
+
+  - _id: req_4
+    _type: request
+    name: Create Interview
+    method: POST
+    url: "{{ base_url }}/interviews"
+    body:
+      mimeType: application/json
+      text: |
+        {
+          "title": "Software Engineer Mock Interview",
+          "description": "General behavioral and technical questions",
+          "user_id": "REPLACE_WITH_USER_UUID"
+        }
+    headers:
+      - name: Content-Type
+        value: application/json
+    parentId: fld_2
+
+  - _id: req_5
+    _type: request
+    name: Get Interview
+    method: GET
+    url: "{{ base_url }}/interviews/REPLACE_WITH_INTERVIEW_UUID"
+    parentId: fld_2
+
+  - _id: req_6
+    _type: request
+    name: List Interview Questions/Search
+    method: GET
+    url: "{{ base_url }}/interviews/REPLACE_WITH_INTERVIEW_UUID/questions"
+    parameters:
+      - name: query
+        value: "Python best practices"
+      - name: k
+        value: "5"
+    parentId: fld_2
+
+
+  - _id: req_7
+    _type: request
+    name: Update Interview
+    method: PATCH
+    url: "{{ base_url }}/interviews/REPLACE_WITH_INTERVIEW_UUID"
+    body:
+      mimeType: application/json
+      text: |
+        {
+          "title": "Senior SE Interview",
+          "description": "Focus on architecture"
+        }
+    headers:
+      - name: Content-Type
+        value: application/json
+    parentId: fld_2
+
+  - _id: req_8
+    _type: request
+    name: Delete Interview
+    method: DELETE
+    url: "{{ base_url }}/interviews/REPLACE_WITH_INTERVIEW_UUID"
+    parentId: fld_2
+
+  # Sessions Group
+  - _id: fld_4
+    _type: request_group
+    name: Sessions
+    parentId: wrk_1
+
+  - _id: req_15
+    _type: request
+    name: Start Session
+    method: POST
+    url: "{{ base_url }}/sessions"
+    body:
+      mimeType: application/json
+      text: |
+        {
+          "user_id": "REPLACE_WITH_USER_UUID",
+          "interview_id": "REPLACE_WITH_INTERVIEW_UUID"
+        }
+    headers:
+      - name: Content-Type
+        value: application/json
+    parentId: fld_4
+
+  - _id: req_16
+    _type: request
+    name: Get Session
+    method: GET
+    url: "{{ base_url }}/sessions/REPLACE_WITH_SESSION_UUID"
+    parentId: fld_4
+
+  - _id: req_17
+    _type: request
+    name: End Session
+    method: POST
+    url: "{{ base_url }}/sessions/REPLACE_WITH_SESSION_UUID/end"
+    parentId: fld_4
+
+  - _id: req_18
+    _type: request
+    name: Get Next Question
+    method: GET
+    url: "{{ base_url }}/sessions/REPLACE_WITH_SESSION_UUID/next-question"
+    parentId: fld_4
+
+  - _id: req_22
+    _type: request
+    name: Get Next Question (speech)
+    method: GET
+    url: "{{ base_url }}/sessions/REPLACE_WITH_SESSION_UUID/next-question"
+    parameters:
+      - name: tts
+        value: "true"
+    parentId: fld_4
+
+  - _id: req_19
+    _type: request
+    name: Submit Answer (text)
+    method: POST
+    url: "{{ base_url }}/sessions/REPLACE_WITH_SESSION_UUID/answers"
+    body:
+      mimeType: multipart/form-data
+      params:
+        - name: question_id
+          value: "REPLACE_WITH_QUESTION_UUID"
+        - name: text
+          value: "My answer goes here"
+    parentId: fld_4
+
+  - _id: req_21
+    _type: request
+    name: Submit Answer (audio)
+    method: POST
+    url: "{{ base_url }}/sessions/REPLACE_WITH_SESSION_UUID/answers"
+    body:
+      mimeType: multipart/form-data
+      params:
+        - name: question_id
+          value: "REPLACE_WITH_QUESTION_UUID"
+        - name: audio
+          type: file
+          fileName: "path/to/answer.mp3"
+    parentId: fld_4
+
+  - _id: req_20
+    _type: request
+    name: List Answers
+    method: GET
+    url: "{{ base_url }}/sessions/REPLACE_WITH_SESSION_UUID/answers"
+    parentId: fld_4
+
+  # Users Group
+  - _id: fld_3
+    _type: request_group
+    name: Users
+    parentId: wrk_1
+
+  - _id: req_9
+    _type: request
+    name: Create User
+    method: POST
+    url: "{{ base_url }}/users"
+    body:
+      mimeType: application/json
+      text: |
+        {
+          "email": "new_user@example.com"
+        }
+    headers:
+      - name: Content-Type
+        value: application/json
+    parentId: fld_3
+
+  - _id: req_10
+    _type: request
+    name: Get User
+    method: GET
+    url: "{{ base_url }}/users/REPLACE_WITH_USER_UUID"
+    parentId: fld_3
+
+  - _id: req_11
+    _type: request
+    name: Update User
+    method: PUT
+    url: "{{ base_url }}/users/REPLACE_WITH_USER_UUID"
+    body:
+      mimeType: application/json
+      text: |
+        {
+          "email": "updated_user@example.com"
+        }
+    headers:
+      - name: Content-Type
+        value: application/json
+    parentId: fld_3
+
+  - _id: req_12
+    _type: request
+    name: Delete User
+    method: DELETE
+    url: "{{ base_url }}/users/REPLACE_WITH_USER_UUID"
+    parentId: fld_3
+
+  - _id: req_13
+    _type: request
+    name: List User Interviews
+    method: GET
+    url: "{{ base_url }}/users/REPLACE_WITH_USER_UUID/interviews"
+    parentId: fld_3

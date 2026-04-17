@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+
+# Virtual environments
+.venv/
+venv/
+
+# Version control
+.git/
+.gitignore
+
+# IDEs
+.idea/
+.vscode/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Build / cache
+build/
+dist/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Docs / misc
+README.md
+insomnia_collection.yaml

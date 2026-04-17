@@ -1,0 +1,33 @@
+services:
+  backend:
+    build: .
+    ports:
+      - "${EXTERNAL_PORT_BACKEND:-8000}:8000"
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/ai_mock_interviews
+    volumes:
+      - .:/app
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: pgvector/pgvector:pg17
+    ports:
+      - "${EXTERNAL_PORT_POSTGRES:-5432}:5432"
+    environment:
+      - POSTGRES_DB=ai_mock_interviews
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ai_mock_interviews"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
