@@ -1,0 +1,26 @@
+# fly.toml app configuration file generated for muddy-surf-9587 on 2026-04-20T00:05:18+02:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'muddy-surf-9587'
+primary_region = 'fra'
+
+[build]
+
+[processes]
+  app = "api-websocket"
+
+[http_service]
+  internal_port = 8001
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ['app']
+
+[[vm]]
+  memory = '512mb'
+  cpu_kind = 'shared'
+  cpus = 1
+  memory_mb = 512
