@@ -7,6 +7,9 @@ class QuestionBase(BaseModel):
     text: str
     category: str | None = None
     difficulty: str | None = None
+    question_type: str = "behavioral"
+    starter_code: str | None = None
+    examples: str | None = None
     order: int = 0
 
 
@@ -30,6 +33,8 @@ class QuestionUpdate(BaseModel):
     text: str | None = None
     category: str | None = None
     difficulty: str | None = None
+    question_type: str | None = None
+    starter_code: str | None = None
     order: int | None = None
 
 

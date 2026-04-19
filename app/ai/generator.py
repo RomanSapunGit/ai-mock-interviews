@@ -13,6 +13,7 @@ async def generate_questions(
     difficulty: str | None,
     topic: str | None,
     count: int = 5,
+    interview_type: str = "behavioral",
 ) -> list[dict]:
     """
     Generate interview questions via Groq LLM using RAG context chunks.
@@ -23,8 +24,9 @@ async def generate_questions(
     context = "\n\n---\n\n".join(context_chunks) if context_chunks else ""
 
     system_prompt = render("generator_system")
+    template_name = "generator_coding_user" if interview_type == "coding" else "generator_user"
     user_prompt = render(
-        "generator_user",
+        template_name,
         count=str(count),
         role=role or "software engineer",
         difficulty=difficulty or "medium",
@@ -57,6 +59,9 @@ async def generate_questions(
                     "text": str(q["text"]),
                     "category": str(q.get("category", "coding")),
                     "difficulty": str(q.get("difficulty", difficulty or "medium")),
+                    "question_type": str(q.get("question_type", interview_type)),
+                    "starter_code": q.get("starter_code"),
+                    "examples": q.get("examples"),
                 }
             )
 

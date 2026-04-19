@@ -7,7 +7,7 @@ from uuid import UUID, uuid4
 from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from sqlalchemy import text
+from sqlalchemy import text, select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config.settings import settings
@@ -234,12 +234,16 @@ async def generate_and_save_questions(
     docs = await search_questions(db, query, interview_id, k=10)
     context_chunks = [doc.page_content for doc in docs]
 
+    interview = await db.get(Interview, interview_id)
+    interview_type = interview.interview_type if interview else "behavioral"
+
     generated = await llm_generate(
         context_chunks=context_chunks,
         role=role,
         difficulty=difficulty,
         topic=topic,
         count=count,
+        interview_type=interview_type,
     )
 
     saved: list[Question] = []
@@ -249,6 +253,9 @@ async def generate_and_save_questions(
             text=q_data["text"],
             category=q_data.get("category"),
             difficulty=q_data.get("difficulty"),
+            question_type=q_data.get("question_type", interview_type),
+            starter_code=q_data.get("starter_code"),
+            examples=q_data.get("examples"),
             order=i,
         )
         db.add(question)
@@ -333,17 +340,36 @@ async def delete_question_by_id(
     no stored FK between the questions table and langchain_pg_embedding.
     Returns False when the question does not exist or belongs to a different interview.
     """
-    question = await db.get(Question, question_id)
-    if not question or question.interview_id != interview_id:
+    from sqlalchemy import delete
+    
+    try:
+        # Get question text first for vector store cleanup
+        q_res = await db.execute(select(Question).where(Question.id == question_id))
+        question = q_res.scalar_one_or_none()
+        if not question or question.interview_id != interview_id:
+            logger.warning(f"Question {question_id} not found for interview {interview_id}")
+            return False
+            
+        question_text = question.text
+        
+        # Atomic delete
+        stmt = delete(Question).where(Question.id == question_id, Question.interview_id == interview_id)
+        result = await db.execute(stmt)
+        await db.commit()
+        
+        if result.rowcount == 0:
+            logger.warning(f"No rows deleted for question {question_id}")
+            return False
+            
+        logger.info(f"Successfully deleted question {question_id} from SQL")
+    except Exception as e:
+        logger.error(f"SQL delete failed for question {question_id}: {e}")
+        await db.rollback()
         return False
 
-    question_text = question.text
-    await db.delete(question)
-    await db.commit()
-
-    # Find and remove any vector-store chunks whose text matches the question.
-    rows = (
-        await db.execute(
+    try:
+        # Find and remove any vector-store chunks whose text matches the question.
+        res = await db.execute(
             text(
                 """
                 SELECT e.id::text
@@ -360,11 +386,15 @@ async def delete_question_by_id(
                 "question_text": question_text,
             },
         )
-    ).fetchall()
-
-    chunk_ids = [row[0] for row in rows]
-    if chunk_ids:
-        await asyncio.to_thread(settings.lang_chain.vector_store.delete, chunk_ids)
+        rows = res.fetchall()
+        chunk_ids = [row[0] for row in rows]
+        
+        if chunk_ids:
+            logger.info("Deleting %d vector chunks for question %s", len(chunk_ids), question_id)
+            await asyncio.to_thread(settings.lang_chain.vector_store.delete, chunk_ids)
+    except Exception as e:
+        logger.warning("Failed to delete vector chunks for question %s: %s", question_id, e)
+        # We don't return False here because the SQL deletion was already successful
 
     return True
 
@@ -392,5 +422,5 @@ async def get_next_question(db: AsyncSession, session: Session) -> Question | No
     if answered_ids:
         query = query.where(Question.id.notin_(answered_ids))
 
-    result = await db.execute(query.order_by(func.random()).limit(1))
+    result = await db.execute(query.order_by(Question.order).limit(1))
     return result.scalar_one_or_none()

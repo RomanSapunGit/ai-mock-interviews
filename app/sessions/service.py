@@ -93,6 +93,9 @@ async def _evaluate_and_store(
     answer_text: str,
     role: str | None,
     difficulty: str | None,
+    question_type: str = "behavioral",
+    transcript: str | None = None,
+    examples: str | None = None,
 ) -> tuple[float, str]:
     from app.ai.evaluator import evaluate_answer
     from app.db.session import async_session_factory
@@ -102,6 +105,9 @@ async def _evaluate_and_store(
         answer=answer_text,
         role=role,
         difficulty=difficulty,
+        question_type=question_type,
+        transcript=transcript,
+        examples=examples,
     )
     async with async_session_factory() as db:
         answer = await db.get(Answer, answer_id)
@@ -118,6 +124,8 @@ async def evaluate_and_maybe_followup(
     question: Question,
     answer_id: UUID,
     answer_text: str,
+    transcript: str | None = None,
+    examples: str | None = None,
 ) -> tuple[float, str, Question | None]:
     """
     Evaluate an answer and potentially generate a follow-up question.
@@ -136,6 +144,9 @@ async def evaluate_and_maybe_followup(
         answer_text=answer_text,
         role=role,
         difficulty=difficulty,
+        question_type=question.question_type,
+        transcript=transcript,
+        examples=examples,
     )
 
     # 2. Check threshold for follow-up
@@ -163,9 +174,20 @@ async def evaluate_and_maybe_followup(
 
 
 async def create_answer(
-    db: DbSession, session_id: UUID, question_id: UUID, text: str
+    db: DbSession, 
+    session_id: UUID, 
+    question_id: UUID, 
+    text: str | None = None,
+    code: str | None = None,
+    language: str | None = None,
 ) -> Answer:
-    answer = Answer(session_id=session_id, question_id=question_id, text=text)
+    answer = Answer(
+        session_id=session_id, 
+        question_id=question_id, 
+        text=text,
+        code=code,
+        language=language
+    )
     db.add(answer)
     await db.commit()
     await db.refresh(answer)

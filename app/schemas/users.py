@@ -8,7 +8,7 @@ class UserBase(BaseModel):
 
 
 class UserCreate(UserBase):
-    pass
+    hashed_password: str | None = None
 
 
 class UserUpdate(BaseModel):
@@ -19,4 +19,15 @@ class UserRead(UserBase):
     id: UUID
     created_at: datetime
 
+    full_name: str | None = None
     model_config = ConfigDict(from_attributes=True)
+
+
+class UserRegister(BaseModel):
+    email: EmailStr
+    password: str
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"

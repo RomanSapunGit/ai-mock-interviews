@@ -13,6 +13,16 @@ services:
       db:
         condition: service_healthy
 
+  frontend:
+    build: ./frontend
+    ports:
+      - "${EXTERNAL_PORT_FRONTEND:-5173}:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+
   db:
     image: pgvector/pgvector:pg17
     ports:

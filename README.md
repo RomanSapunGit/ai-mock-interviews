@@ -2,7 +2,7 @@
 
 A FastAPI-based backend for AI-powered mock interviews with PostgreSQL and `pgvector`.
 
-## 🚀 Quick Start
+## Quick Start
 
 ### 1. Environment Setup
 Create your `.env` file (a template is provided in `.env.example`):
@@ -20,7 +20,7 @@ docker compose up --build -d
 
 ---
 
-## 🛠 Essential Commands
+## Essential Commands
 
 ### Dependency Management
 - **Install dependencies**: `uv sync`
@@ -36,9 +36,39 @@ docker compose up --build -d
 
 ---
 
-## 🗄 Database Info
+## Database Info
 
 This project uses **SQLAlchemy** with **Alembic** and **pgvector**.
 
 - **Models**: `app/db/models.py`
 - **Migrations**: `migrations/versions/`
+
+---
+
+## Project Structure
+
+```text
+ai-mock-interviews-fullstack/
+├── app/                  # FastAPI Backend application
+│   ├── ai/               # LLM integrations (LangChain, Prompts, Evaluators)
+│   ├── auth/             # JWT authentication & password hashing
+│   ├── config/           # Pydantic environment configuration
+│   ├── db/               # PostgreSQL connection, Session factory, ORM Models
+│   ├── interviews/       # REST endpoints for Interviews
+│   ├── questions/        # REST endpoints for Questions processing
+│   ├── schemas/          # Pydantic schemas formatting API input/output
+│   ├── sessions/         # REST endpoints for active interview Sessions
+│   └── users/            # REST endpoints for User accounts
+├── frontend/             # React frontend single-page application (SPA)
+│   ├── src/
+│   │   ├── components/   # Reusable UI component modules (Modals, Navbars)
+│   │   ├── context/      # React Context global states (AuthContext)
+│   │   ├── pages/        # View routes (Dashboard, Landing, InterviewDetail)
+│   │   └── services/     # Axios API logic (interviewService, login, etc)
+│   └── vite.config.js    # Vite builder settings
+├── migrations/           # Alembic database schema histories
+├── pyproject.toml        # Python pip dependencies & uv specs
+├── docker-compose.yml    # Full-stack orchestrator
+├── Dockerfile            # Python backend docker image builder
+└── entrypoint.sh         # Bash startup script (automates migrations + uvicorn)
+```

@@ -20,5 +20,7 @@ dependencies = [
     "langchain-community>=0.4.1",
     "pydantic[email]>=2.12.5",
     "python-multipart>=0.0.26",
+    "python-jose[cryptography]>=3.3.0",
+    "bcrypt>=4.0.0",
     "edge-tts>=6.1.9",
 ]

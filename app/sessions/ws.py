@@ -26,6 +26,7 @@ import asyncio
 import base64
 import json
 import logging
+from typing import cast
 from uuid import UUID
 
 from fastapi import WebSocket, WebSocketDisconnect
@@ -105,7 +106,19 @@ async def handle_session_ws(websocket: WebSocket, session_id: UUID) -> None:
             if msg_type == "answer_text":
                 question_id = UUID(data["question_id"])
                 await _handle_answer(
-                    websocket, session_id, question_id, data["text"], eval_queue
+                    websocket, session_id, question_id, eval_queue, text=data["text"]
+                )
+
+            elif msg_type == "answer_code":
+                question_id = UUID(data["question_id"])
+                await _handle_answer(
+                    websocket, 
+                    session_id, 
+                    question_id, 
+                    eval_queue, 
+                    text=data.get("text"),
+                    code=data.get("code"),
+                    language=data.get("language")
                 )
 
             elif msg_type == "answer_audio_start":
@@ -122,14 +135,49 @@ async def handle_session_ws(websocket: WebSocket, session_id: UUID) -> None:
                 audio_buf = []
                 qid = audio_question_id
                 audio_question_id = None
+                code = data.get("code")
+                language = data.get("language")
+                examples = data.get("examples")
+
                 try:
-                    text = await transcribe_audio(audio_bytes, audio_filename)
+                    transcript = await transcribe_audio(audio_bytes, audio_filename)
                 except Exception as exc:
                     await websocket.send_json(
                         {"type": "error", "detail": f"Transcription failed: {exc}"}
                     )
                     continue
-                await _handle_answer(websocket, session_id, qid, text, eval_queue)
+                
+                # Directly handle as final answer for SCR
+                asyncio.create_task(
+                    _handle_answer(
+                        websocket, 
+                        session_id, 
+                        cast(UUID, qid), 
+                        eval_queue, 
+                        text=transcript, 
+                        code=code, 
+                        language=language,
+                        examples=examples
+                    )
+                )
+
+            elif msg_type == "request_hint":
+                # Manual hint request for SCR
+                question_id = UUID(data["question_id"])
+                code = data.get("code")
+                language = data.get("language")
+                transcript = data.get("transcript", "")
+                examples = data.get("examples")
+                asyncio.create_task(
+                    _handle_manual_hint(
+                        websocket, 
+                        question_id, 
+                        code, 
+                        language, 
+                        transcript,
+                        examples
+                    )
+                )
 
     async def eval_push_loop() -> None:
         while True:
@@ -195,6 +243,9 @@ async def _send_next_question(websocket: WebSocket, session_id: UUID) -> None:
                 "question_id": str(question.id),
                 "text": question.text,
                 "order": question.order,
+                "question_type": question.question_type,
+                "starter_code": question.starter_code,
+                "examples": question.examples,
             }
         )
 
@@ -225,8 +276,11 @@ async def _handle_answer(
     websocket: WebSocket,
     session_id: UUID,
     question_id: UUID,
-    text: str,
     eval_queue: asyncio.Queue,
+    text: str | None = None,
+    code: str | None = None,
+    language: str | None = None,
+    examples: str | None = None,
 ) -> None:
     """Persist an answer, ACK the client, fire background evaluation, send next question."""
     async with async_session_factory() as db:
@@ -256,7 +310,9 @@ async def _handle_answer(
             await websocket.send_json({"type": "error", "detail": "Question already answered"})
             return
 
-        answer = await service.create_answer(db, session_id, question_id, text)
+        answer = await service.create_answer(
+            db, session_id, question_id, text=text, code=code, language=language
+        )
 
         interview = await db.get(Interview, session.interview_id)
         role = interview.role if interview else None
@@ -272,13 +328,20 @@ async def _handle_answer(
 
     # Wait for evaluation and potential follow-up before proceeding.
     async with async_session_factory() as db:
-        score, feedback, followup_q = await service.evaluate_and_maybe_followup(
-            db=db,
-            session=session,
-            question=question,
-            answer_id=answer_id,
-            answer_text=text,
-        )
+            # For coding questions, 'text' is the transcript, and 'code' is the answer.
+            # For behavioral, 'text' is the answer.
+            evaluation_answer = code if question.question_type == "coding" else (text or "")
+            evaluation_transcript = text if question.question_type == "coding" else None
+
+            score, feedback, followup_q = await service.evaluate_and_maybe_followup(
+                db=db,
+                session=session,
+                question=question,
+                answer_id=answer_id,
+                answer_text=evaluation_answer,
+                transcript=evaluation_transcript,
+                examples=examples
+            )
 
     # Push evaluation to client.
     await eval_queue.put(
@@ -293,6 +356,9 @@ async def _handle_answer(
                 "question_id": str(followup_q.id),
                 "text": followup_q.text,
                 "order": followup_q.order,
+                "question_type": followup_q.question_type,
+                "starter_code": followup_q.starter_code,
+                "examples": followup_q.examples,
                 "is_followup": True,
             }
         )
@@ -311,3 +377,36 @@ async def _handle_answer(
     else:
         # Send the next pre-generated question.
         await _send_next_question(websocket, session_id)
+
+
+async def _handle_manual_hint(
+    websocket: WebSocket,
+    question_id: UUID,
+    code: str | None = None,
+    language: str | None = None,
+    transcript: str | None = None,
+    examples: str | None = None,
+) -> None:
+    """
+    Generate and stream a hint upon explicit user request.
+    """
+    async with async_session_factory() as db:
+        q_result = await db.execute(select(Question).where(Question.id == question_id))
+        question = q_result.scalar_one_or_none()
+        if not question:
+            await websocket.send_json({"type": "error", "detail": "Question not found"})
+            return
+
+    from app.ai.evaluator import generate_hint
+
+    hint_text = await generate_hint(
+        question=question.text,
+        code=code or "",
+        language=language or "python",
+        transcript=transcript or "",
+        examples=examples,
+    )
+
+    await websocket.send_json({"type": "hint", "text": hint_text})
+
+    await websocket.send_json({"type": "hint", "text": hint_text})

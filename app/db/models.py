@@ -45,6 +45,7 @@ class Interview(Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     role: Mapped[str | None] = mapped_column(String(255), nullable=True)  # e.g. "Backend Engineer"
     difficulty: Mapped[str | None] = mapped_column(String(50), nullable=True)  # e.g. "medium"
+    interview_type: Mapped[str] = mapped_column(String(50), nullable=False, default="behavioral")  # behavioral | coding
     status: Mapped[str] = mapped_column(String(50), nullable=False, default="pending")  # pending | active | completed
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
@@ -89,6 +90,9 @@ class Question(Base):
     text: Mapped[str] = mapped_column(Text, nullable=False)
     category: Mapped[str | None] = mapped_column(String(100), nullable=True)  # e.g. "algorithms", "system-design"
     difficulty: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    question_type: Mapped[str] = mapped_column(String(50), nullable=False, default="behavioral")  # behavioral | coding
+    starter_code: Mapped[str | None] = mapped_column(Text, nullable=True)
+    examples: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(50), nullable=False, default="active")  # active | completed
     order: Mapped[int] = mapped_column(nullable=False, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
@@ -108,6 +112,8 @@ class Answer(Base):
     session_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), ForeignKey("sessions.id", ondelete="CASCADE"), nullable=False, index=True)
     question_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), ForeignKey("questions.id", ondelete="CASCADE"), nullable=False, index=True)
     text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    code: Mapped[str | None] = mapped_column(Text, nullable=True)
+    language: Mapped[str | None] = mapped_column(String(50), nullable=True)
     score: Mapped[float | None] = mapped_column(nullable=True)
     ai_feedback: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)

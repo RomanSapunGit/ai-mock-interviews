@@ -76,8 +76,13 @@ async def delete_interview_question(
     if not interview:
         raise HTTPException(status_code=404, detail="Interview not found")
 
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"Deleting question {question_id} for interview {interview_id}")
+    
     deleted = await questions_service.delete_question_by_id(db, question_id, interview_id)
     if not deleted:
+        logger.warning(f"Delete failed: question {question_id} not found or mismatch for interview {interview_id}")
         raise HTTPException(status_code=404, detail="Question not found")
     return None
 

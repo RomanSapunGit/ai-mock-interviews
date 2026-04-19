@@ -10,17 +10,21 @@ ENV UV_LINK_MODE=copy
 # Copy only the dependency files first
 COPY pyproject.toml uv.lock ./
 
-# Install dependencies (this creates the .venv in /app)
-RUN uv sync --no-dev
+# Install dependencies (cache mount keeps downloaded packages between builds)
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --no-dev
 
 # Copy the rest of the application code (respecting .dockerignore)
 COPY . .
 
-# Expose the application port
-EXPOSE 8000
+# Copy entrypoint outside /app so volume mounts can't overwrite it
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
 # Set environment variables for the application
 ENV PYTHONUNBUFFERED=1
 
-# Use uv run to ensure we use the virtual environment correctly
-CMD ["uv", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+# Expose the application port
+EXPOSE 8000
+
+ENTRYPOINT ["/entrypoint.sh"]

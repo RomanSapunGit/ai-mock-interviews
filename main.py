@@ -4,6 +4,7 @@ from app.questions.routes import router as questions_router
 from app.interviews.routes import router as interviews_router
 from app.users.routes import router as users_router
 from app.sessions.routes import router as sessions_router
+from app.auth.router import router as auth_router
 
 app = FastAPI(title="AI Mock Interview API")
 
@@ -16,6 +17,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth_router, prefix="/auth", tags=["auth"])
 app.include_router(questions_router, prefix="/questions", tags=["questions"])
 app.include_router(interviews_router, prefix="/interviews", tags=["interviews"])
 app.include_router(users_router, prefix="/users", tags=["users"])

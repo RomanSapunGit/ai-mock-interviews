@@ -8,6 +8,7 @@ class InterviewBase(BaseModel):
     description: str | None = None
     role: str | None = None
     difficulty: str | None = None
+    interview_type: str = "behavioral"
 
 
 class InterviewCreate(InterviewBase):
@@ -20,6 +21,7 @@ class InterviewUpdate(BaseModel):
     description: str | None = None
     role: str | None = None
     difficulty: str | None = None
+    interview_type: str | None = None
     status: str | None = None
 
 
