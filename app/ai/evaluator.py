@@ -5,7 +5,6 @@ from app.ai.prompts import render
 
 logger = logging.getLogger(__name__)
 
-
 async def evaluate_answer(
     question: str,
     answer: str,
@@ -54,7 +53,6 @@ async def evaluate_answer(
 
     return score, feedback
 
-
 async def generate_followup_question(
     question: str,
     answer: str,
@@ -83,7 +81,6 @@ async def generate_followup_question(
     )
 
     return (response.choices[0].message.content or "").strip()
-
 
 async def evaluate_session_overall(
     qa_pairs: list[dict],
@@ -114,20 +111,19 @@ async def evaluate_session_overall(
         )
         raw = response.choices[0].message.content or "{}"
         data = json.loads(raw)
-        
+
         score = float(data.get("score", 0.0))
         feedback = str(data.get("feedback", ""))
-        
+
         if not 0.0 <= score <= 10.0:
             score = max(0.0, min(10.0, score))
-            
+
         return score, feedback
     except Exception as e:
         logger.error(f"Failed to evaluate session overall: {e}")
-        # Fallback to simple average
+
         avg = sum(p.get("score", 0.0) for p in qa_pairs) / len(qa_pairs) if qa_pairs else 0.0
         return avg, "Overall evaluation failed to generate."
-
 
 async def classify_intent(transcript: str, question: str) -> str:
     """
@@ -164,7 +160,6 @@ async def classify_intent(transcript: str, question: str) -> str:
     except Exception as e:
         logger.error(f"Intent classification failed: {e}")
         return "neutral"
-
 
 async def generate_hint(question: str, code: str, language: str, transcript: str, examples: str | None = None) -> str:
     """

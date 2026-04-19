@@ -11,7 +11,6 @@ from app.users.service import get_user
 
 bearer_scheme = HTTPBearer()
 
-
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
     db: AsyncSession = Depends(get_db_session),

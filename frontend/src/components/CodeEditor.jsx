@@ -16,7 +16,7 @@ const CodeEditor = ({ starterCode = '', onSubmit, disabled, onChange, onLanguage
   const [code, setCode] = useState(starterCode);
   const [language, setLanguage] = useState('python');
 
-  // Sync with global window for current evaluation logic in InterviewSession
+
   React.useEffect(() => {
     window.currentCode = code;
     if (onChange) onChange(code);

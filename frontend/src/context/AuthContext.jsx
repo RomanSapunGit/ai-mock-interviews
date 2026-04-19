@@ -7,7 +7,7 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Restore session from token on mount
+
   useEffect(() => {
     const token = authService.getToken();
     if (token) {

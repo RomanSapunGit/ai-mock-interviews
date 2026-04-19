@@ -42,11 +42,9 @@ from app.sessions import service
 
 logger = logging.getLogger(__name__)
 
-
 async def handle_session_ws(websocket: WebSocket, session_id: UUID) -> None:
     await websocket.accept()
 
-    # Validate session before entering the main loop.
     async with async_session_factory() as db:
         session = await service.get_session(db, session_id)
         if not session:
@@ -58,23 +56,14 @@ async def handle_session_ws(websocket: WebSocket, session_id: UUID) -> None:
             await websocket.close(code=1008)
             return
 
-    # Queue through which background eval tasks push their results.
     eval_queue: asyncio.Queue[dict] = asyncio.Queue()
 
-    # Audio collection state (mutated by receive_loop).
     audio_buf: list[bytes] = []
     audio_question_id: UUID | None = None
     audio_filename: str = "audio.webm"
     collecting_audio: bool = False
 
-    # Send the first question right away.
     await _send_next_question(websocket, session_id)
-
-    # ------------------------------------------------------------------ #
-    # Two concurrent tasks:                                                 #
-    #   receive_loop  – reads client messages, dispatches answer handling   #
-    #   eval_push_loop – pushes AI evaluation results as they complete      #
-    # ------------------------------------------------------------------ #
 
     async def receive_loop() -> None:
         nonlocal audio_buf, audio_question_id, audio_filename, collecting_audio
@@ -85,13 +74,11 @@ async def handle_session_ws(websocket: WebSocket, session_id: UUID) -> None:
             if msg["type"] == "websocket.disconnect":
                 return
 
-            # Binary frame: accumulate audio chunks.
             if msg.get("bytes") is not None:
                 if collecting_audio:
                     audio_buf.append(msg["bytes"])
                 continue
 
-            # Text frame: JSON control message.
             if msg.get("text") is None:
                 continue
 
@@ -112,10 +99,10 @@ async def handle_session_ws(websocket: WebSocket, session_id: UUID) -> None:
             elif msg_type == "answer_code":
                 question_id = UUID(data["question_id"])
                 await _handle_answer(
-                    websocket, 
-                    session_id, 
-                    question_id, 
-                    eval_queue, 
+                    websocket,
+                    session_id,
+                    question_id,
+                    eval_queue,
                     text=data.get("text"),
                     code=data.get("code"),
                     language=data.get("language")
@@ -146,23 +133,22 @@ async def handle_session_ws(websocket: WebSocket, session_id: UUID) -> None:
                         {"type": "error", "detail": f"Transcription failed: {exc}"}
                     )
                     continue
-                
-                # Directly handle as final answer for SCR
+
                 asyncio.create_task(
                     _handle_answer(
-                        websocket, 
-                        session_id, 
-                        cast(UUID, qid), 
-                        eval_queue, 
-                        text=transcript, 
-                        code=code, 
+                        websocket,
+                        session_id,
+                        cast(UUID, qid),
+                        eval_queue,
+                        text=transcript,
+                        code=code,
                         language=language,
                         examples=examples
                     )
                 )
 
             elif msg_type == "request_hint":
-                # Manual hint request for SCR
+
                 question_id = UUID(data["question_id"])
                 code = data.get("code")
                 language = data.get("language")
@@ -170,10 +156,10 @@ async def handle_session_ws(websocket: WebSocket, session_id: UUID) -> None:
                 examples = data.get("examples")
                 asyncio.create_task(
                     _handle_manual_hint(
-                        websocket, 
-                        question_id, 
-                        code, 
-                        language, 
+                        websocket,
+                        question_id,
+                        code,
+                        language,
                         transcript,
                         examples
                     )
@@ -198,7 +184,7 @@ async def handle_session_ws(websocket: WebSocket, session_id: UUID) -> None:
         )
         for task in pending:
             task.cancel()
-        # Propagate any unexpected exception.
+
         for task in done:
             if not task.cancelled():
                 task.result()
@@ -210,11 +196,6 @@ async def handle_session_ws(websocket: WebSocket, session_id: UUID) -> None:
             await websocket.send_json({"type": "error", "detail": "Internal server error"})
         except Exception:
             pass
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
 
 async def _send_next_question(websocket: WebSocket, session_id: UUID) -> None:
     """Fetch the next unanswered question and stream it (text + TTS audio)."""
@@ -249,7 +230,6 @@ async def _send_next_question(websocket: WebSocket, session_id: UUID) -> None:
             }
         )
 
-        # Stream TTS audio chunks.
         try:
             async for chunk in speak_stream(question.text):
                 await websocket.send_json(
@@ -270,7 +250,6 @@ async def _send_next_question(websocket: WebSocket, session_id: UUID) -> None:
             logger.info("Client disconnected before sending question %s", question.id)
         else:
             logger.exception("Failed to send question %s", question.id)
-
 
 async def _handle_answer(
     websocket: WebSocket,
@@ -326,10 +305,8 @@ async def _handle_answer(
         logger.info("Client disconnected before ACK for answer %s", answer_id)
         return
 
-    # Wait for evaluation and potential follow-up before proceeding.
     async with async_session_factory() as db:
-            # For coding questions, 'text' is the transcript, and 'code' is the answer.
-            # For behavioral, 'text' is the answer.
+
             evaluation_answer = code if question.question_type == "coding" else (text or "")
             evaluation_transcript = text if question.question_type == "coding" else None
 
@@ -343,13 +320,12 @@ async def _handle_answer(
                 examples=examples
             )
 
-    # Push evaluation to client.
     await eval_queue.put(
         {"answer_id": str(answer_id), "score": score, "feedback": feedback}
     )
 
     if followup_q:
-        # Send follow-up to client.
+
         await websocket.send_json(
             {
                 "type": "question",
@@ -363,7 +339,6 @@ async def _handle_answer(
             }
         )
 
-        # Stream TTS for follow-up.
         try:
             async for chunk in speak_stream(followup_q.text):
                 await websocket.send_json(
@@ -375,9 +350,8 @@ async def _handle_answer(
             await websocket.send_json({"type": "audio_done"})
 
     else:
-        # Send the next pre-generated question.
-        await _send_next_question(websocket, session_id)
 
+        await _send_next_question(websocket, session_id)
 
 async def _handle_manual_hint(
     websocket: WebSocket,

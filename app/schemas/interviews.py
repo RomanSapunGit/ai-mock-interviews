@@ -2,7 +2,6 @@ from datetime import datetime
 from uuid import UUID
 from pydantic import BaseModel, ConfigDict
 
-
 class InterviewBase(BaseModel):
     title: str
     description: str | None = None
@@ -10,11 +9,9 @@ class InterviewBase(BaseModel):
     difficulty: str | None = None
     interview_type: str = "behavioral"
 
-
 class InterviewCreate(InterviewBase):
     user_id: UUID
     status: str = "pending"
-
 
 class InterviewUpdate(BaseModel):
     title: str | None = None
@@ -23,7 +20,6 @@ class InterviewUpdate(BaseModel):
     difficulty: str | None = None
     interview_type: str | None = None
     status: str | None = None
-
 
 class InterviewRead(InterviewBase):
     id: UUID

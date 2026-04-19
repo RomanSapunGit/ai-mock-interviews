@@ -5,11 +5,9 @@ from pydantic import BaseModel, ConfigDict
 
 from app.schemas.questions import QuestionRead
 
-
 class SessionCreate(BaseModel):
     user_id: UUID
     interview_id: UUID
-
 
 class SessionRead(BaseModel):
     id: UUID
@@ -23,11 +21,9 @@ class SessionRead(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
-
 class AnswerCreate(BaseModel):
     question_id: UUID
     text: str
-
 
 class AnswerRead(BaseModel):
     id: UUID
@@ -39,7 +35,6 @@ class AnswerRead(BaseModel):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
-
 
 class NextQuestionResponse(BaseModel):
     question: QuestionRead | None

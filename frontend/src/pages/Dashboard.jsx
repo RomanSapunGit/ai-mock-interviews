@@ -48,7 +48,7 @@ const Dashboard = () => {
   const confirmDelete = async () => {
     const id = confirmDeleteId;
     if (!id) return;
-    
+
     setDeleting(true);
     try {
       await interviewService.deleteInterview(id);
@@ -109,8 +109,8 @@ const Dashboard = () => {
                       <h3>{interview.title}</h3>
                       <div className="card-actions">
                         <span className="date"> <Clock size={14} /> {(new Date(interview.created_at || Date.now())).toLocaleDateString()}</span>
-                        <button 
-                          className="btn-icon delete-btn" 
+                        <button
+                          className="btn-icon delete-btn"
                           onClick={(e) => handleDelete(e, interview.id)}
                           title="Delete interview"
                         >
@@ -120,8 +120,8 @@ const Dashboard = () => {
                     </div>
                     <p className="description">{interview.description || 'No description provided'}</p>
                     <div className="card-actions">
-                      <button 
-                        onClick={() => handleStartSession(interview.id)} 
+                      <button
+                        onClick={() => handleStartSession(interview.id)}
                         className="btn-primary btn-sm"
                         disabled={interview.status === 'completed'}
                         style={interview.status === 'completed' ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
@@ -168,7 +168,7 @@ const Dashboard = () => {
       <AnimatePresence>
         {confirmDeleteId && (
           <div className="modal-overlay" onClick={() => !deleting && setConfirmDeleteId(null)}>
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}

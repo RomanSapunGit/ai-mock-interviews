@@ -3,9 +3,7 @@ from typing import AsyncIterator
 
 import edge_tts
 
-# A natural-sounding English interviewer voice.
 DEFAULT_VOICE = "en-US-AriaNeural"
-
 
 async def speak(text: str, voice: str = DEFAULT_VOICE) -> bytes:
     """
@@ -18,7 +16,6 @@ async def speak(text: str, voice: str = DEFAULT_VOICE) -> bytes:
         if chunk["type"] == "audio":
             buf.write(chunk["data"])
     return buf.getvalue()
-
 
 async def speak_stream(text: str, voice: str = DEFAULT_VOICE) -> AsyncIterator[bytes]:
     """

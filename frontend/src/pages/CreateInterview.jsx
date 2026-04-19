@@ -21,7 +21,7 @@ const CreateInterview = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      // 1. Create the interview record
+
       const interview = await interviewService.createInterview({
         title,
         description,
@@ -29,18 +29,18 @@ const CreateInterview = () => {
         interview_type: interviewType
       });
 
-      // 2. Ingest questions (text and/or files + parameters)
+
       const formData = new FormData();
       formData.append('interview_id', interview.id);
       if (text) formData.append('text', text);
       files.forEach(file => formData.append('files', file));
-      
+
       formData.append('count', count.toString());
       if (topic) formData.append('topic', topic);
 
       await interviewService.ingestQuestions(formData);
-      
-      // Navigate to dashboard - background generation handles the rest
+
+
       navigate('/dashboard');
     } catch (err) {
       console.error(err);
@@ -67,13 +67,13 @@ const CreateInterview = () => {
             <Settings2 size={20} className="text-primary" />
             <h3>Basic Info & Settings</h3>
           </div>
-          
+
           <div className="input-grid">
             <div className="input-group full-width">
               <label>Interview Title</label>
-              <input 
-                className="glass-input" 
-                placeholder="e.g. Senior Frontend Engineer" 
+              <input
+                className="glass-input"
+                placeholder="e.g. Senior Frontend Engineer"
                 value={title}
                 onChange={e => setTitle(e.target.value)}
                 required
@@ -83,28 +83,28 @@ const CreateInterview = () => {
             <div className="input-group full-width">
               <label>Interview Type</label>
               <div className="type-toggle glass-card">
-                <button 
+                <button
                   type="button"
-                  className={interviewType === 'behavioral' ? 'active' : ''} 
+                  className={interviewType === 'behavioral' ? 'active' : ''}
                   onClick={() => setInterviewType('behavioral')}
                 >
                   Behavioral
                 </button>
-                <button 
+                <button
                   type="button"
-                  className={interviewType === 'coding' ? 'active' : ''} 
+                  className={interviewType === 'coding' ? 'active' : ''}
                   onClick={() => setInterviewType('coding')}
                 >
                   Coding (Technical)
                 </button>
               </div>
             </div>
-            
+
             <div className="input-group">
               <label><Target size={14} /> Target Topic (Optional)</label>
-              <input 
-                className="glass-input" 
-                placeholder="e.g. System Design, React" 
+              <input
+                className="glass-input"
+                placeholder="e.g. System Design, React"
                 value={topic}
                 onChange={e => setTopic(e.target.value)}
               />
@@ -112,9 +112,9 @@ const CreateInterview = () => {
 
             <div className="input-group">
               <label><Hash size={14} /> Question Count</label>
-              <input 
+              <input
                 type="number"
-                className="glass-input" 
+                className="glass-input"
                 min="1" max="20"
                 value={count}
                 onChange={e => setCount(parseInt(e.target.value) || 5)}
@@ -123,9 +123,9 @@ const CreateInterview = () => {
 
             <div className="input-group full-width">
               <label>Description (Optional)</label>
-              <textarea 
-                className="glass-input" 
-                placeholder="Focus on React and System Design..." 
+              <textarea
+                className="glass-input"
+                placeholder="Focus on React and System Design..."
                 value={description}
                 onChange={e => setDescription(e.target.value)}
                 rows={2}
@@ -140,12 +140,12 @@ const CreateInterview = () => {
             <h3>Context & Documents</h3>
           </div>
           <p className="section-hint">Provide text or upload PDF/TXT files to generate questions from.</p>
-          
+
           <div className="input-group">
             <label>Paste Job Description or Notes</label>
-            <textarea 
-              className="glass-input" 
-              placeholder="Paste text here..." 
+            <textarea
+              className="glass-input"
+              placeholder="Paste text here..."
               value={text}
               onChange={e => setText(e.target.value)}
               rows={5}
@@ -179,15 +179,15 @@ const CreateInterview = () => {
         .form-section { padding: 2.5rem; display: flex; flex-direction: column; gap: 1.5rem; border-radius: 20px; }
         .section-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem; }
         .section-header h3 { font-size: 1.3rem; margin: 0; font-weight: 700; color: var(--text-main); }
-        
+
         .input-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
         .full-width { grid-column: span 2; }
-        
+
         .input-group { display: flex; flex-direction: column; gap: 0.6rem; }
         label { font-size: 0.85rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05rem; display: flex; align-items: center; gap: 0.5rem; }
-        
+
         .section-hint { font-size: 0.9rem; color: var(--text-dim); line-height: 1.6; margin-top: -0.5rem; }
-        
+
         .file-upload {
           border: 2px dashed rgba(129, 140, 248, 0.3);
           border-radius: 16px;
@@ -199,13 +199,13 @@ const CreateInterview = () => {
         .file-upload:hover { border-color: var(--primary); background: rgba(129, 140, 248, 0.02); }
         .file-label { cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 1rem; color: var(--text-muted); font-weight: 600; }
         .file-label input { display: none; }
-        
+
         .file-list { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 1.5rem; justify-content: center; }
         .file-tag { background: rgba(129, 140, 248, 0.1); color: #a5b4fc; padding: 0.3rem 0.8rem; border-radius: 100px; font-size: 0.8rem; font-weight: 600; }
-        
+
         .actions { display: flex; justify-content: flex-end; gap: 1.25rem; margin-top: 1.5rem; }
         .main-cta { padding: 0.85rem 2rem; font-weight: 700; border-radius: 12px; }
-        
+
         .type-toggle { display: flex; padding: 0.3rem; border-radius: 12px; background: rgba(255,255,255,0.03); }
         .type-toggle button { flex: 1; padding: 0.8rem; border-radius: 9px; border: none; background: transparent; color: var(--text-dim); font-weight: 600; cursor: pointer; transition: all 0.2s; }
         .type-toggle button.active { background: var(--primary); color: white; box-shadow: 0 4px 12px rgba(129, 140, 248, 0.4); }

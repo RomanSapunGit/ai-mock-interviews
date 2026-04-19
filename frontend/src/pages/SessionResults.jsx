@@ -87,16 +87,16 @@ const SessionResults = () => {
                   Score: {ans.score || 'N/A'}/10
                 </div>
               </div>
-              
+
               <div style={{ marginBottom: '1.5rem' }}>
                 <h4 style={{ fontSize: '0.85rem', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.5rem', letterSpacing: '0.05rem' }}>Your Answer</h4>
                 {ans.code ? (
-                  <pre style={{ 
-                    color: '#a5b4fc', 
-                    lineHeight: 1.6, 
-                    background: 'rgba(15, 23, 42, 0.5)', 
-                    padding: '1.5rem', 
-                    borderRadius: '12px', 
+                  <pre style={{
+                    color: '#a5b4fc',
+                    lineHeight: 1.6,
+                    background: 'rgba(15, 23, 42, 0.5)',
+                    padding: '1.5rem',
+                    borderRadius: '12px',
                     overflowX: 'auto',
                     fontFamily: 'monospace',
                     fontSize: '0.9rem',

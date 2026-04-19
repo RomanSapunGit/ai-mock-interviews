@@ -16,9 +16,7 @@ from app.ai.generator import generate_questions as llm_generate
 
 logger = logging.getLogger(__name__)
 
-# Strong references — prevents background tasks from being GC'd before completion.
 _background_tasks: set[asyncio.Task] = set()
-
 
 async def _index_and_generate_background(
     interview_id: UUID,
@@ -54,7 +52,6 @@ async def _index_and_generate_background(
     except Exception:
         logger.exception("Background index+generate failed for interview %s", interview_id)
 
-
 def schedule_generation(
     interview_id: UUID,
     count: int = 5,
@@ -67,7 +64,6 @@ def schedule_generation(
     )
     _background_tasks.add(task)
     task.add_done_callback(_background_tasks.discard)
-
 
 async def load_and_index_file(file_path: str, interview_id: UUID) -> list[str]:
     """
@@ -107,7 +103,6 @@ async def load_and_index_file(file_path: str, interview_id: UUID) -> list[str]:
         ids=[c.metadata["id"] for c in chunks],
     )
 
-
 async def load_and_index_questions(text_content: str, interview_id: UUID) -> list[str]:
     """
     Chunks plain text and indexes it in the vector store only.
@@ -134,7 +129,6 @@ async def load_and_index_questions(text_content: str, interview_id: UUID) -> lis
         ids=[d.metadata["id"] for d in documents],
     )
 
-
 async def search_questions(
     db: AsyncSession,
     query: str | None,
@@ -160,7 +154,6 @@ async def search_questions(
                 results.append(doc)
         return results
 
-    # No query — fetch raw chunks from the vector store's backing table.
     rows = (
         await db.execute(
             text(
@@ -189,14 +182,12 @@ async def search_questions(
         for row in rows
     ]
 
-
 async def get_question(question_id: str) -> Document | None:
     docs = await asyncio.to_thread(
         settings.lang_chain.vector_store.get_by_ids,
         [question_id],
     )
     return docs[0] if docs else None
-
 
 async def delete_question(question_id: str) -> bool:
     """
@@ -212,7 +203,6 @@ async def delete_question(question_id: str) -> bool:
     await asyncio.to_thread(settings.lang_chain.vector_store.delete, [question_id])
     return True
 
-
 async def generate_and_save_questions(
     db: AsyncSession,
     interview_id: UUID,
@@ -227,9 +217,6 @@ async def generate_and_save_questions(
     Raises on LLM or parsing failure.
     """
 
-    # Use topic as the search query when available — it's the most specific signal.
-    # Fall back to role so semantic search still filters by relevance across multiple
-    # documents. Only fetch all chunks unfiltered when neither is set.
     query = topic or role
     docs = await search_questions(db, query, interview_id, k=10)
     context_chunks = [doc.page_content for doc in docs]
@@ -267,7 +254,6 @@ async def generate_and_save_questions(
 
     return saved
 
-
 async def delete_all_interview_questions(db: AsyncSession, interview_id: UUID) -> bool:
     """
     Removes all vector store chunks for the interview, then lets the DB cascade
@@ -297,7 +283,6 @@ async def delete_all_interview_questions(db: AsyncSession, interview_id: UUID) -
 
     return True
 
-
 async def list_questions(db: AsyncSession, interview_id: UUID) -> list[Question]:
     """Return all generated questions for an interview, ordered by their position."""
     from sqlalchemy import select
@@ -309,26 +294,24 @@ async def list_questions(db: AsyncSession, interview_id: UUID) -> list[Question]
     )
     return list(result.scalars().all())
 
-
 async def reset_interview_questions(db: AsyncSession, interview_id: UUID) -> None:
     """Set all questions for an interview back to 'active' status."""
     from sqlalchemy import update
     from app.db.models import Interview
-    
+
     await db.execute(
         update(Question)
         .where(Question.interview_id == interview_id)
         .values(status="active")
     )
-    
+
     await db.execute(
         update(Interview)
         .where(Interview.id == interview_id)
         .values(status="active")
     )
-    
-    await db.commit()
 
+    await db.commit()
 
 async def delete_question_by_id(
     db: AsyncSession, question_id: UUID, interview_id: UUID
@@ -341,26 +324,25 @@ async def delete_question_by_id(
     Returns False when the question does not exist or belongs to a different interview.
     """
     from sqlalchemy import delete
-    
+
     try:
-        # Get question text first for vector store cleanup
+
         q_res = await db.execute(select(Question).where(Question.id == question_id))
         question = q_res.scalar_one_or_none()
         if not question or question.interview_id != interview_id:
             logger.warning(f"Question {question_id} not found for interview {interview_id}")
             return False
-            
+
         question_text = question.text
-        
-        # Atomic delete
+
         stmt = delete(Question).where(Question.id == question_id, Question.interview_id == interview_id)
         result = await db.execute(stmt)
         await db.commit()
-        
+
         if result.rowcount == 0:
             logger.warning(f"No rows deleted for question {question_id}")
             return False
-            
+
         logger.info(f"Successfully deleted question {question_id} from SQL")
     except Exception as e:
         logger.error(f"SQL delete failed for question {question_id}: {e}")
@@ -368,7 +350,7 @@ async def delete_question_by_id(
         return False
 
     try:
-        # Find and remove any vector-store chunks whose text matches the question.
+
         res = await db.execute(
             text(
                 """
@@ -388,16 +370,14 @@ async def delete_question_by_id(
         )
         rows = res.fetchall()
         chunk_ids = [row[0] for row in rows]
-        
+
         if chunk_ids:
             logger.info("Deleting %d vector chunks for question %s", len(chunk_ids), question_id)
             await asyncio.to_thread(settings.lang_chain.vector_store.delete, chunk_ids)
     except Exception as e:
         logger.warning("Failed to delete vector chunks for question %s: %s", question_id, e)
-        # We don't return False here because the SQL deletion was already successful
 
     return True
-
 
 async def get_next_question(db: AsyncSession, session: Session) -> Question | None:
     """
@@ -406,11 +386,9 @@ async def get_next_question(db: AsyncSession, session: Session) -> Question | No
     """
     from sqlalchemy import select, func
 
-    # 1. Identify questions already answered in this session
     answered_stmt = select(Answer.question_id).where(Answer.session_id == session.id)
     answered_ids = (await db.execute(answered_stmt)).scalars().all()
 
-    # 2. Select a random active question that isn't in the answered list
     query = (
         select(Question)
         .where(
@@ -418,7 +396,7 @@ async def get_next_question(db: AsyncSession, session: Session) -> Question | No
             Question.status == "active"
         )
     )
-    
+
     if answered_ids:
         query = query.where(Question.id.notin_(answered_ids))
 

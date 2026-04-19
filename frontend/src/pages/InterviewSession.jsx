@@ -9,7 +9,7 @@ import './InterviewSession.css';
 const InterviewSession = () => {
   const { id: sessionId } = useParams();
   const navigate = useNavigate();
-  
+
   const [session, setSession] = useState(null);
   const [currentQuestion, setCurrentQuestion] = useState(null);
   const [showTranscript, setShowTranscript] = useState(false);
@@ -26,15 +26,15 @@ const InterviewSession = () => {
   const [started, setStarted] = useState(() => {
     return localStorage.getItem(`started_${sessionId}`) === 'true';
   });
-  
+
   const audioRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const aiAudioChunksRef = useRef([]);
   const userAudioChunksRef = useRef([]);
   const stoppingForPlaybackRef = useRef(false);
   const ws = useRef(null);
-  
-  // Refs for state to avoid stale closures in WS callbacks
+
+
   const currentQuestionRef = useRef(currentQuestion);
   const isRecordingRef = useRef(isRecording);
   const isPlayingRef = useRef(isPlaying);
@@ -53,7 +53,7 @@ const InterviewSession = () => {
     };
   }, [sessionId, started]);
 
-  // Code persistence effect
+
   useEffect(() => {
     if (!started || !currentQuestion) return;
     const timer = setInterval(() => {
@@ -106,7 +106,7 @@ const InterviewSession = () => {
             category: data.category || '',
           };
 
-          // Restore saved code if available
+
           const savedCode = localStorage.getItem(`code_${sessionId}_${qData.id}`);
           if (savedCode) {
             qData.starter_code = savedCode;
@@ -118,21 +118,21 @@ const InterviewSession = () => {
           if (savedLang) {
             window.currentLanguage = savedLang;
           } else {
-            window.currentLanguage = 'python'; // Default
+            window.currentLanguage = 'python';
           }
 
           setCurrentQuestion(qData);
-          currentQuestionRef.current = qData; // Immediate update
+          currentQuestionRef.current = qData;
           aiAudioChunksRef.current = [];
           userAudioChunksRef.current = [];
           if (audioRef.current) audioRef.current.src = '';
           setAnswer('');
           setSubmitting(false);
 
-          // Restore saved feedback/eval for this question
+
           const savedFeedback = localStorage.getItem(`feedback_${sessionId}_${qData.id}`);
           setFeedback(savedFeedback || null);
-          
+
           const savedEval = localStorage.getItem(`eval_${sessionId}_${qData.id}`);
           if (savedEval) {
             try {
@@ -151,8 +151,8 @@ const InterviewSession = () => {
           setEditableExamples(savedExamples || qData.examples || '');
 
           setShowTranscript(false);
-          
-          // Auto-start recording for coding questions
+
+
           if (qData.question_type === 'coding') {
             setTimeout(() => startRecording(), 500);
           }
@@ -172,15 +172,15 @@ const InterviewSession = () => {
             feedback: data.feedback
           });
           setSubmitting(false);
-          aiAudioChunksRef.current = []; // Clear for next potential AI audio
-          userAudioChunksRef.current = []; // Clear user audio for next question
+          aiAudioChunksRef.current = [];
+          userAudioChunksRef.current = [];
           if (audioRef.current) audioRef.current.src = '';
           break;
 
         case 'hint':
           setFeedback(data.text);
           setSubmitting(false);
-          aiAudioChunksRef.current = []; // Clear for hint audio
+          aiAudioChunksRef.current = [];
           if (audioRef.current) audioRef.current.src = '';
           break;
 
@@ -222,12 +222,12 @@ const InterviewSession = () => {
 
   const playAggregatedAudio = async () => {
     if (aiAudioChunksRef.current.length === 0) {
-      // If we got audio_done but no chunks, resume recording
+
       startRecording();
       return;
     }
 
-    // Only stop recording for behavioral questions where we want turn-taking
+
     const q = currentQuestionRef.current;
     const isCoding = q?.question_type === 'coding';
     if (!isCoding) {
@@ -236,11 +236,11 @@ const InterviewSession = () => {
     }
     setIsPlaying(true);
     isPlayingRef.current = true;
-    
+
     console.log(`Playing AI audio with ${aiAudioChunksRef.current.length} chunks`);
     const blob = new Blob(aiAudioChunksRef.current, { type: 'audio/mpeg' });
     const url = URL.createObjectURL(blob);
-    
+
     if (audioRef.current) {
       audioRef.current.src = url;
       audioRef.current.onended = () => {
@@ -248,14 +248,14 @@ const InterviewSession = () => {
         setIsPlaying(false);
         isPlayingRef.current = false;
         URL.revokeObjectURL(url);
-        // Clear AI chunks after playing
+
         aiAudioChunksRef.current = [];
-        // Automatically resume recording for behavioral after AI finishes
+
         if (!isCoding) {
           startRecording();
         }
       };
-      
+
       try {
         await audioRef.current.play();
         setAudioBlocked(false);
@@ -289,11 +289,11 @@ const InterviewSession = () => {
 
   const handleStartInterview = async () => {
     setStarted(true);
-    // Prime microphone and audio context
+
     if (audioRef.current) {
       try {
         await audioRef.current.play();
-        // Request mic access once to prime permissions and ensure secure context
+
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         stream.getTracks().forEach(track => track.stop());
       } catch (e) {
@@ -353,13 +353,13 @@ const InterviewSession = () => {
         const q = currentQuestionRef.current;
         if (ws.current && ws.current.readyState === WebSocket.OPEN && q) {
           if (q.question_type === 'coding') {
-             // For coding, we send everything at once on submission
+
              ws.current.send(JSON.stringify({
                type: 'answer_audio_start',
                question_id: q.id,
                filename: 'explanation.webm'
              }));
-             // Send all collected chunks
+
              userAudioChunksRef.current.forEach(chunk => {
                ws.current.send(chunk);
              });
@@ -381,8 +381,8 @@ const InterviewSession = () => {
       isRecordingRef.current = true;
     } catch (err) {
       console.error('Failed to start recording', err);
-      // More descriptive error
-      const msg = err.name === 'NotAllowedError' ? 'Microphone access denied. Please allow it in the browser settings.' : 
+
+      const msg = err.name === 'NotAllowedError' ? 'Microphone access denied. Please allow it in the browser settings.' :
                   (err.name === 'NotFoundError' ? 'No microphone found.' : `Microphone error: ${err.name} - ${err.message}`);
       alert(msg);
     }
@@ -437,8 +437,8 @@ const InterviewSession = () => {
 
   const cleanupSessionStorage = () => {
     localStorage.removeItem(`started_${sessionId}`);
-    // Optional: We could iterate and remove question-specific keys, but started_ is the entry point
-    // A more thorough cleanup:
+
+
     Object.keys(localStorage).forEach(key => {
       if (key.includes(`_${sessionId}_`)) {
         localStorage.removeItem(key);
@@ -464,7 +464,7 @@ const InterviewSession = () => {
   return (
     <div className="session-container">
       <audio ref={audioRef} hidden />
-      
+
       <header className="session-header">
         <div className="session-info">
           <span className="live-badge">LIVE SESSION</span>
@@ -488,7 +488,7 @@ const InterviewSession = () => {
             <div className="question-area">
               <AnimatePresence mode="wait">
                 {currentQuestion ? (
-                  <motion.div 
+                  <motion.div
                     key={currentQuestion.id}
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
@@ -509,16 +509,16 @@ const InterviewSession = () => {
                         )}
                       </div>
                     </div>
-                    
+
                     {audioBlocked && <p className="unblock-notice">Click the icon to hear the question</p>}
-                    
+
                     <h3 className="status-text">
                       {isRecording ? 'Listening for your explanation...' : (isTranscribing ? 'Transcribing...' : (isPlaying ? 'Playing question...' : (submitting ? 'Evaluating your answer...' : 'Listen to the question')))}
                     </h3>
 
                     <AnimatePresence>
                       {currentQuestion.is_followup && (
-                        <motion.div 
+                        <motion.div
                           initial={{ opacity: 0, y: -20 }}
                           animate={{ opacity: 1, y: 0 }}
                           className="followup-badge"
@@ -527,17 +527,17 @@ const InterviewSession = () => {
                         </motion.div>
                       )}
                     </AnimatePresence>
-                    
+
                     <div className="transcript-container">
-                      <button 
-                        onClick={() => setShowTranscript(!showTranscript)} 
+                      <button
+                        onClick={() => setShowTranscript(!showTranscript)}
                         className="btn-transcript"
                       >
                         {showTranscript ? <><EyeOff size={16} /> Hide Transcript</> : <><Eye size={16} /> Show Transcript</>}
                       </button>
-                      
+
                       {showTranscript && (
-                        <motion.p 
+                        <motion.p
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
                           className="q-content"
@@ -549,7 +549,7 @@ const InterviewSession = () => {
 
                     <AnimatePresence>
                       {evalResult && (
-                        <motion.div 
+                        <motion.div
                           initial={{ opacity: 0, height: 0 }}
                           animate={{ opacity: 1, height: 'auto' }}
                           className="eval-mini-card"
@@ -564,7 +564,7 @@ const InterviewSession = () => {
 
                     <AnimatePresence>
                       {feedback && feedback.length > 0 && !evalResult && (
-                        <motion.div 
+                        <motion.div
                           initial={{ opacity: 0, y: 20 }}
                           animate={{ opacity: 1, y: 0 }}
                           className="hint-alert glass-card"
@@ -615,7 +615,7 @@ const InterviewSession = () => {
                       <Eye size={16} />
                       <h4>Problem Examples (Editable)</h4>
                     </div>
-                    <textarea 
+                    <textarea
                       className="examples-input"
                       value={editableExamples}
                       onChange={(e) => setEditableExamples(e.target.value)}

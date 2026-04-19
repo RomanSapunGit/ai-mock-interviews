@@ -11,7 +11,6 @@ load_dotenv()
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 RAW_DATABASE_URL = getenv("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/ai_mock_interviews")
 
-
 @dataclass
 class DatabaseSettings:
     DATABASE_URL: str = RAW_DATABASE_URL
@@ -30,7 +29,6 @@ class DatabaseSettings:
         )
         return self._engine_instance
 
-
 @dataclass
 class AppSettings:
     SECRET_KEY: str = getenv("SECRET_KEY", "changeme")
@@ -46,7 +44,6 @@ class AppSettings:
             "http://localhost:5173"
         ]
     )
-
 
 @dataclass
 class LangChainSettings:
@@ -69,7 +66,6 @@ class LangChainSettings:
             )
         return self._vector_store_instance
 
-
 @dataclass
 class EvaluatorSettings:
     GROQ_API_KEY: str = getenv("GROQ_API_KEY", "")
@@ -78,7 +74,6 @@ class EvaluatorSettings:
         base_url="https://api.groq.com/openai/v1",
     )
 
-
 @dataclass
 class Settings:
     db: DatabaseSettings = field(default_factory=DatabaseSettings)
@@ -86,9 +81,7 @@ class Settings:
     lang_chain: LangChainSettings = field(default_factory=LangChainSettings)
     evaluator: EvaluatorSettings = field(default_factory=EvaluatorSettings)
 
-
 def get_settings() -> Settings:
     return Settings()
-
 
 settings = get_settings()

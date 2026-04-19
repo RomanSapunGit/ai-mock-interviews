@@ -7,14 +7,8 @@ from sqlalchemy import DateTime, ForeignKey, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
-
 class Base(DeclarativeBase):
     pass
-
-
-# ---------------------------------------------------------------------------
-# users
-# ---------------------------------------------------------------------------
 
 class User(Base):
     __tablename__ = "users"
@@ -31,11 +25,6 @@ class User(Base):
     sessions: Mapped[list["Session"]] = relationship("Session", back_populates="user", cascade="all, delete-orphan")
     interviews: Mapped[list["Interview"]] = relationship("Interview", back_populates="user", cascade="all, delete-orphan")
 
-
-# ---------------------------------------------------------------------------
-# interviews
-# ---------------------------------------------------------------------------
-
 class Interview(Base):
     __tablename__ = "interviews"
 
@@ -43,10 +32,10 @@ class Interview(Base):
     user_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    role: Mapped[str | None] = mapped_column(String(255), nullable=True)  # e.g. "Backend Engineer"
-    difficulty: Mapped[str | None] = mapped_column(String(50), nullable=True)  # e.g. "medium"
-    interview_type: Mapped[str] = mapped_column(String(50), nullable=False, default="behavioral")  # behavioral | coding
-    status: Mapped[str] = mapped_column(String(50), nullable=False, default="pending")  # pending | active | completed
+    role: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    difficulty: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    interview_type: Mapped[str] = mapped_column(String(50), nullable=False, default="behavioral")
+    status: Mapped[str] = mapped_column(String(50), nullable=False, default="pending")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
@@ -55,11 +44,6 @@ class Interview(Base):
     user: Mapped["User"] = relationship("User", back_populates="interviews")
     sessions: Mapped[list["Session"]] = relationship("Session", back_populates="interview", cascade="all, delete-orphan")
     questions: Mapped[list["Question"]] = relationship("Question", back_populates="interview", cascade="all, delete-orphan")
-
-
-# ---------------------------------------------------------------------------
-# sessions
-# ---------------------------------------------------------------------------
 
 class Session(Base):
     __tablename__ = "sessions"
@@ -77,33 +61,23 @@ class Session(Base):
     interview: Mapped["Interview"] = relationship("Interview", back_populates="sessions")
     answers: Mapped[list["Answer"]] = relationship("Answer", back_populates="session", cascade="all, delete-orphan")
 
-
-# ---------------------------------------------------------------------------
-# questions
-# ---------------------------------------------------------------------------
-
 class Question(Base):
     __tablename__ = "questions"
 
     id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
     interview_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), ForeignKey("interviews.id", ondelete="CASCADE"), nullable=False, index=True)
     text: Mapped[str] = mapped_column(Text, nullable=False)
-    category: Mapped[str | None] = mapped_column(String(100), nullable=True)  # e.g. "algorithms", "system-design"
+    category: Mapped[str | None] = mapped_column(String(100), nullable=True)
     difficulty: Mapped[str | None] = mapped_column(String(50), nullable=True)
-    question_type: Mapped[str] = mapped_column(String(50), nullable=False, default="behavioral")  # behavioral | coding
+    question_type: Mapped[str] = mapped_column(String(50), nullable=False, default="behavioral")
     starter_code: Mapped[str | None] = mapped_column(Text, nullable=True)
     examples: Mapped[str | None] = mapped_column(Text, nullable=True)
-    status: Mapped[str] = mapped_column(String(50), nullable=False, default="active")  # active | completed
+    status: Mapped[str] = mapped_column(String(50), nullable=False, default="active")
     order: Mapped[int] = mapped_column(nullable=False, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     interview: Mapped["Interview"] = relationship("Interview", back_populates="questions")
     answers: Mapped[list["Answer"]] = relationship("Answer", back_populates="question", cascade="all, delete-orphan")
-
-
-# ---------------------------------------------------------------------------
-# answers
-# ---------------------------------------------------------------------------
 
 class Answer(Base):
     __tablename__ = "answers"

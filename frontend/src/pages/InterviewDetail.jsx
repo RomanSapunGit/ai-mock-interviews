@@ -16,15 +16,15 @@ const InterviewDetail = () => {
   const [regenerating, setRegenerating] = useState(false);
    const [deletingId, setDeletingId] = useState(null);
    const [confirmDeleteId, setConfirmDeleteId] = useState(null);
-  
-  // Generation Params
+
+
   const [count, setCount] = useState(5);
   const [topic, setTopic] = useState('');
-  
-  // Modal Context Params
+
+
   const [contextText, setContextText] = useState('');
   const [files, setFiles] = useState([]);
-  
+
   const { user } = useAuth();
   const userId = user?.id;
 
@@ -56,24 +56,24 @@ const InterviewDetail = () => {
     setRegenerating(true);
     try {
       if (useModalContext) {
-        // Full regeneration with new context
+
         const formData = new FormData();
         formData.append('interview_id', id);
         formData.append('count', count.toString());
         if (topic) formData.append('topic', topic);
         if (contextText) formData.append('text', contextText);
         files.forEach(f => formData.append('files', f));
-        
+
         await interviewService.ingestQuestions(formData);
         setIsModalOpen(false);
         setContextText('');
         setFiles([]);
       } else {
-        // Just reset existing questions to active
+
         await interviewService.resetQuestions(id);
       }
-      
-      // Refresh questions after a delay
+
+
       setTimeout(() => fetchData(), useModalContext ? 3000 : 1000);
     } catch (err) {
       console.error(err);
@@ -90,7 +90,7 @@ const InterviewDetail = () => {
   const confirmDelete = async () => {
     const questionId = confirmDeleteId;
     if (!questionId) return;
-    
+
     setConfirmDeleteId(null);
     setDeletingId(questionId);
     try {
@@ -132,13 +132,13 @@ const InterviewDetail = () => {
             <p className="description">{interview.description}</p>
           </div>
           <div className="header-actions">
-            <button 
-              onClick={handleStartSession} 
+            <button
+              onClick={handleStartSession}
               className="btn-primary main-cta"
               disabled={interview.status === 'completed' || (questions.length > 0 && questions.every(q => q.status === 'completed'))}
               style={(interview.status === 'completed' || (questions.length > 0 && questions.every(q => q.status === 'completed'))) ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
             >
-              <Play size={18} fill="currentColor" /> 
+              <Play size={18} fill="currentColor" />
               {(interview.status === 'completed' || (questions.length > 0 && questions.every(q => q.status === 'completed'))) ? 'Completed' : 'Start Session'}
             </button>
           </div>
@@ -151,7 +151,7 @@ const InterviewDetail = () => {
             <h3>Interview Questions</h3>
             <span className="count-badge">{questions.length} Questions</span>
           </div>
-          
+
           <div className="questions-list">
             {questions.length === 0 ? (
               <div className="empty-questions">
@@ -171,8 +171,8 @@ const InterviewDetail = () => {
                         {q.difficulty && <span className={`tag diff-${q.difficulty}`}>{q.difficulty}</span>}
                         {q.category && <span className="tag category">{q.category}</span>}
                       </div>
-                      <button 
-                        onClick={() => handleDeleteQuestion(q.id)} 
+                      <button
+                        onClick={() => handleDeleteQuestion(q.id)}
                         className="btn-delete"
                         disabled={deletingId === q.id}
                         title="Delete Question"
@@ -193,7 +193,7 @@ const InterviewDetail = () => {
               <Settings2 size={18} />
               <h3>Parameters</h3>
             </div>
-            
+
             <div className="control-item">
               <label>Question Count</label>
               <input type="number" className="glass-input" value={count} onChange={e => setCount(parseInt(e.target.value))} min="1" max="20" />
@@ -226,7 +226,7 @@ const InterviewDetail = () => {
       <AnimatePresence>
         {confirmDeleteId && (
           <div className="modal-overlay" onClick={() => setConfirmDeleteId(null)}>
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
@@ -245,7 +245,7 @@ const InterviewDetail = () => {
 
         {isModalOpen && (
           <div className="modal-overlay" onClick={() => setIsModalOpen(false)}>
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
@@ -260,9 +260,9 @@ const InterviewDetail = () => {
               <div className="modal-body">
                 <div className="form-group">
                   <label><FileText size={16} /> Paste New Context</label>
-                  <textarea 
-                    className="glass-input" 
-                    placeholder="Paste job details, tech requirements, or your notes here..." 
+                  <textarea
+                    className="glass-input"
+                    placeholder="Paste job details, tech requirements, or your notes here..."
                     value={contextText}
                     onChange={e => setContextText(e.target.value)}
                     rows={8}
@@ -271,12 +271,12 @@ const InterviewDetail = () => {
 
                 <div className="form-group mini-group">
                   <label><Hash size={16} /> Question Count</label>
-                  <input 
-                    type="number" 
-                    className="glass-input" 
+                  <input
+                    type="number"
+                    className="glass-input"
                     min="1" max="20"
-                    value={count} 
-                    onChange={e => setCount(parseInt(e.target.value) || 5)} 
+                    value={count}
+                    onChange={e => setCount(parseInt(e.target.value) || 5)}
                   />
                 </div>
 
@@ -317,19 +317,19 @@ const InterviewDetail = () => {
         .questions-section { padding: 2rem; }
         .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2.5rem; }
         .count-badge { background: var(--primary-glow); color: var(--primary); padding: 0.25rem 1rem; border-radius: 100px; font-weight: 700; font-size: 0.8rem; }
-        
+
         .questions-list { display: flex; flex-direction: column; gap: 1.25rem; }
         .question-item { display: flex; gap: 1.5rem; padding: 1.75rem; border-radius: 16px; background: rgba(255,255,255,0.02); border: 1px solid var(--border); transition: all 0.3s; }
         .question-item:hover { transform: translateX(8px); border-color: rgba(129, 140, 248, 0.4); background: rgba(255,255,255,0.04); }
         .q-num { width: 36px; height: 36px; background: var(--border); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-weight: 800; color: var(--primary); flex-shrink: 0; font-size: 1rem; }
         .q-body { flex: 1; }
         .q-text { font-size: 1.15rem; line-height: 1.6; margin-bottom: 1rem; color: #e2e8f0; font-weight: 400; }
-        
+
         .q-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 1rem; }
         .q-tags { display: flex; gap: 0.5rem; }
         .btn-delete { background: transparent; border: none; color: var(--text-dim); cursor: pointer; padding: 0.5rem; border-radius: 8px; transition: all 0.2s; display: flex; align-items: center; justify-content: center; }
         .btn-delete:hover { background: rgba(239, 68, 68, 0.1); color: #f87171; }
-        
+
         .tag { font-size: 0.72rem; padding: 0.2rem 0.75rem; border-radius: 6px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05rem; }
         .diff-easy { background: rgba(34, 197, 94, 0.1); color: #4ade80; }
         .diff-medium { background: rgba(234, 179, yellow, 0.1); color: #fde047; }
@@ -356,17 +356,17 @@ const InterviewDetail = () => {
         .modal-header h3 { font-size: 1.75rem; font-weight: 800; margin: 0; }
         .close-btn { background: var(--border); border: none; color: var(--text-dim); width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; }
         .close-btn:hover { background: rgba(255,255,255,0.1); color: white; }
-        
+
         .form-group { display: flex; flex-direction: column; gap: 0.75rem; }
         .form-group label { font-size: 0.95rem; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 0.6rem; }
         .upload-zone { border: 2px dashed var(--border); border-radius: 16px; padding: 2.5rem; text-align: center; transition: all 0.3s; background: rgba(255,255,255,0.01); }
         .upload-zone:hover { border-color: var(--primary); background: rgba(129, 140, 248, 0.02); }
         .upload-label { cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 1rem; color: var(--text-muted); }
         .upload-label input { display: none; }
-        
+
         .mini-file-list { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 1.5rem; justify-content: center; }
         .f-tag { background: var(--border); padding: 0.3rem 0.8rem; border-radius: 100px; font-size: 0.75rem; color: #a5b4fc; font-weight: 600; }
-        
+
         .modal-footer { display: flex; justify-content: flex-end; gap: 1.25rem; margin-top: 3rem; }
         .w-full { width: 100%; display: flex; justify-content: center; gap: 0.6rem; }
         .loading { display: flex; justify-content: center; align-items: center; min-height: 300px; color: var(--text-dim); }
@@ -377,7 +377,7 @@ const InterviewDetail = () => {
         .type-badge { padding: 0.3rem 1rem; border-radius: 100px; font-size: 0.8rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05rem; }
         .type-badge.coding { background: rgba(129, 140, 248, 0.2); color: #a5b4fc; border: 1px solid rgba(129, 140, 248, 0.4); }
         .type-badge.behavioral { background: rgba(16, 185, 129, 0.1); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.2); }
-        
+
         .delete-confirm-modal { max-width: 450px !important; padding: 2rem !important; text-align: center; }
         .delete-confirm-modal h3 { margin-bottom: 1rem; color: #f87171; }
         .delete-confirm-modal p { color: var(--text-dim); margin-bottom: 2rem; line-height: 1.5; }

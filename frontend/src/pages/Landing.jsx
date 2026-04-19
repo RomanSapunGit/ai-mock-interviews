@@ -15,7 +15,7 @@ const Landing = () => {
 
   return (
     <div className="landing-container">
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="hero"
@@ -25,14 +25,14 @@ const Landing = () => {
         </span>
         <h1>Master Your Next <br/><span className="gradient-text">Interview</span></h1>
         <p className="subtitle">
-          Practice with semi-structured AI interviews tailored to your experience. 
+          Practice with semi-structured AI interviews tailored to your experience.
           Upload documents or provide text to generate relevant questions.
         </p>
-        
+
         <form onSubmit={handleStart} className="login-form">
-          <input 
-            type="email" 
-            placeholder="Enter your email to start" 
+          <input
+            type="email"
+            placeholder="Enter your email to start"
             className="glass-input"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -46,7 +46,7 @@ const Landing = () => {
       {showModal && <LoginModal onClose={() => setShowModal(false)} initialEmail={email} />}
 
       <div className="grid-bg" />
-      
+
       <style>{`
         .landing-container {
           height: 80vh;

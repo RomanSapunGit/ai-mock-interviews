@@ -16,11 +16,9 @@ from app.schemas.sessions import (
 )
 from app.schemas.questions import QuestionRead
 from app.sessions import service
-from app.sessions.ws import handle_session_ws
 from app.questions import service as questions_service
 
 router = APIRouter()
-
 
 @router.get("", response_model=list[SessionRead])
 async def list_sessions(
@@ -38,7 +36,6 @@ async def start_session(
 ):
     return await service.start_session(db, session_in.user_id, session_in.interview_id)
 
-
 @router.get("/{session_id}", response_model=SessionRead)
 async def get_session(
     session_id: UUID,
@@ -48,7 +45,6 @@ async def get_session(
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
     return session
-
 
 @router.post("/{session_id}/end", response_model=SessionRead)
 async def end_session(
@@ -61,7 +57,6 @@ async def end_session(
     if session.ended_at is not None:
         raise HTTPException(status_code=409, detail="Session already ended")
     return await service.end_session(db, session)
-
 
 @router.get("/{session_id}/next-question", response_model=NextQuestionResponse)
 async def next_question(
@@ -88,7 +83,6 @@ async def next_question(
         question=QuestionRead.model_validate(question) if question else None,
         completed=question is None,
     )
-
 
 @router.post(
     "/{session_id}/answers",
@@ -149,7 +143,6 @@ async def submit_answer(
         )
     return answer
 
-
 @router.get("/{session_id}/answers", response_model=list[AnswerRead])
 async def list_answers(
     session_id: UUID,
@@ -159,7 +152,6 @@ async def list_answers(
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
     return await service.list_answers(db, session_id)
-
 
 @router.post("/transcribe", response_model=dict)
 async def transcribe_audio_endpoint(
@@ -172,8 +164,3 @@ async def transcribe_audio_endpoint(
     audio_bytes = await audio.read()
     text = await transcribe_audio(audio_bytes, audio.filename or "audio")
     return {"text": text}
-
-
-@router.websocket("/{session_id}/ws")
-async def session_websocket(session_id: UUID, websocket: WebSocket):
-    await handle_session_ws(websocket, session_id)

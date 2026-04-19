@@ -1,8 +1,24 @@
 services:
-  backend:
+  backend-api:
     build: .
     ports:
       - "${EXTERNAL_PORT_BACKEND:-8000}:8000"
+    command: api
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/ai_mock_interviews
+    volumes:
+      - .:/app
+    depends_on:
+      db:
+        condition: service_healthy
+
+  backend-ws:
+    build: .
+    ports:
+      - "${EXTERNAL_PORT_WS:-8001}:8001"
+    command: api-websocket
     env_file:
       - .env
     environment:
@@ -21,7 +37,8 @@ services:
       - ./frontend:/app
       - /app/node_modules
     depends_on:
-      - backend
+      - backend-api
+      - backend-ws
 
   db:
     image: pgvector/pgvector:pg17

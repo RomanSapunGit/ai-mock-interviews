@@ -3,7 +3,6 @@ from app.config.settings import settings
 
 logger = logging.getLogger(__name__)
 
-
 async def transcribe_audio(audio_bytes: bytes, filename: str) -> str:
     """
     Transcribe audio using Groq's Whisper endpoint.

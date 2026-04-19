@@ -11,7 +11,6 @@ from app.questions import service
 
 router = APIRouter()
 
-
 @router.post("", response_model=MessageResponseSchema, status_code=status.HTTP_201_CREATED)
 async def create_questions(
     interview_id: UUID = Form(...),
@@ -42,7 +41,6 @@ async def create_questions(
 
     return MessageResponseSchema(message="Indexing and question generation started in the background.")
 
-
 @router.get("/{question_id}", response_model=QuestionDocument)
 async def get_question(question_id: str):
     doc = await service.get_question(question_id)
@@ -53,7 +51,6 @@ async def get_question(question_id: str):
         metadata=doc.metadata,
         id=question_id,
     )
-
 
 @router.delete("/{question_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_question(question_id: str):

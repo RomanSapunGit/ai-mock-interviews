@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 
 const LoginModal = ({ onClose, initialEmail = '' }) => {
   const { login, register } = useAuth();
-  const [tab, setTab] = useState('login'); // 'login' | 'register'
+  const [tab, setTab] = useState('login');
   const [email, setEmail] = useState(initialEmail);
   const [password, setPassword] = useState('');
 

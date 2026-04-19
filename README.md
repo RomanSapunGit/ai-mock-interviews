@@ -27,7 +27,8 @@ docker compose up --build -d
 - **Add a package**: `uv add <package_name>`
 
 ### Application Execution
-- **Run local dev server**: `uv run uvicorn main:app --reload`
+- **Run local REST server**: `uv run uvicorn app.main:app --reload`
+- **Run local WS server**: `uv run uvicorn app.main_ws:app --reload --port 8001`
 - **Run with Docker**: `docker compose up -d`
 
 ### Database Migrations (Alembic)
@@ -50,6 +51,8 @@ This project uses **SQLAlchemy** with **Alembic** and **pgvector**.
 ```text
 ai-mock-interviews-fullstack/
 ├── app/                  # FastAPI Backend application
+│   ├── main.py           # REST API Entrypoint
+│   ├── main_ws.py        # WebSocket Engine Entrypoint
 │   ├── ai/               # LLM integrations (LangChain, Prompts, Evaluators)
 │   ├── auth/             # JWT authentication & password hashing
 │   ├── config/           # Pydantic environment configuration

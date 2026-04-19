@@ -6,7 +6,6 @@ from app.ai.prompts import render
 
 logger = logging.getLogger(__name__)
 
-
 async def generate_questions(
     context_chunks: list[str],
     role: str | None,
