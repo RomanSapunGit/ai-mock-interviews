@@ -8,6 +8,9 @@ primary_region = 'fra'
 
 [build]
 
+[processes]
+  app = "api"
+
 [http_service]
   internal_port = 8000
   force_https = true
