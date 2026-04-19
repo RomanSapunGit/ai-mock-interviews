@@ -1,6 +1,12 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.sessions.ws_routes import router as ws_sessions_router
+import sentry_sdk
+
+from app.config.settings import settings
+
+
+sentry_sdk.init(dsn=settings.app.SENTRY_DSN_URL, send_default_pii=True)
 
 app = FastAPI(
     title="AI Mock Interview WebSocket Service",

@@ -11,6 +11,7 @@ load_dotenv()
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 RAW_DATABASE_URL = getenv("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/ai_mock_interviews")
 
+
 @dataclass
 class DatabaseSettings:
     DATABASE_URL: str = RAW_DATABASE_URL
@@ -29,6 +30,7 @@ class DatabaseSettings:
         )
         return self._engine_instance
 
+
 @dataclass
 class AppSettings:
     SECRET_KEY: str = getenv("SECRET_KEY", "changeme")
@@ -38,12 +40,14 @@ class AppSettings:
     GROQ_WHISPER_MODEL: str = getenv("GROQ_WHISPER_MODEL", "whisper-large-v3-turbo")
     EMBEDDING_MODEL: str = getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
     EMBEDDING_DIMENSIONS: int = int(getenv("EMBEDDING_DIMENSIONS", "384"))
+    SENTRY_DSN_URL: str = getenv("SENTRY_DSN_URL", "")
 
     CORS_ALLOWED_ORIGINS: list[str] = field(
         default_factory=lambda: [
             "http://localhost:5173"
         ]
     )
+
 
 @dataclass
 class LangChainSettings:
@@ -66,6 +70,7 @@ class LangChainSettings:
             )
         return self._vector_store_instance
 
+
 @dataclass
 class EvaluatorSettings:
     GROQ_API_KEY: str = getenv("GROQ_API_KEY", "")
@@ -73,6 +78,7 @@ class EvaluatorSettings:
         api_key=GROQ_API_KEY,
         base_url="https://api.groq.com/openai/v1",
     )
+
 
 @dataclass
 class Settings:

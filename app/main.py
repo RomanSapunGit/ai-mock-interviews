@@ -5,6 +5,12 @@ from app.interviews.routes import router as interviews_router
 from app.users.routes import router as users_router
 from app.sessions.routes import router as sessions_router
 from app.auth.router import router as auth_router
+import sentry_sdk
+
+from app.config.settings import settings
+
+
+sentry_sdk.init(dsn=settings.app.SENTRY_DSN_URL, send_default_pii=True)
 
 app = FastAPI(
     title="AI Mock Interview API",
