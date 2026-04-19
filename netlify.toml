@@ -1,0 +1,10 @@
+[build]
+  base = "frontend"
+  command = "bun run build"
+  publish = "dist"
+
+# Required for React Router (SPA) to work on Netlify without 404ing on refresh
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
