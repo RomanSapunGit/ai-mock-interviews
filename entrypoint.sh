@@ -6,13 +6,16 @@ if [ "$1" == "dev" ]; then
   uv run alembic upgrade head
 fi
 
+# Set port from environment variable with fallback to 8080
+PORT=${PORT:-8080}
+
 echo "Starting application..."
 if [ "$1" == "api" ]; then
-  echo "Starting api service on port 8080..."
-  exec /opt/venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8080
+  echo "Starting api service on port $PORT..."
+  exec /opt/venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port $PORT
 fi
 
 if [ "$1" == "api-websocket" ]; then
-    echo "Starting websocket service on port 8080..."
-    exec /opt/venv/bin/python -m uvicorn app.main_ws:app --host 0.0.0.0 --port 8080
+    echo "Starting websocket service on port $PORT..."
+    exec /opt/venv/bin/python -m uvicorn app.main_ws:app --host 0.0.0.0 --port $PORT
 fi

@@ -7,8 +7,9 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from langchain_huggingface import HuggingFaceEmbeddings
 
-print("DEBUG: Loading settings.py...")
 from dotenv import load_dotenv
+load_dotenv()
+from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -16,11 +17,19 @@ if TYPE_CHECKING:
     from openai import AsyncOpenAI
     from langchain_huggingface import HuggingFaceEmbeddings
 
-load_dotenv()
-from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
-print("DEBUG: settings.py core imports complete.")
-print("DEBUG: settings.py imports complete.")
-RAW_DATABASE_URL = getenv("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/ai_mock_interviews")
+def _get_database_url() -> str:
+    url = getenv("DATABASE_URL")
+    if not url:
+        return "postgresql+asyncpg://postgres:postgres@localhost:5432/ai_mock_interviews"
+    
+    # Standardize protocol for asyncpg compatibility
+    if "://" in url:
+        scheme, rest = url.split("://", 1)
+        if scheme in ["postgres", "postgresql"]:
+            return f"postgresql+asyncpg://{rest}"
+    return url
+
+RAW_DATABASE_URL = _get_database_url()
 
 
 @dataclass
@@ -72,7 +81,6 @@ class LangChainSettings:
     @property
     def vector_store(self) -> PGVector:
         if self._vector_store_instance is None:
-            print("DEBUG: Initializing Vector Store (PGVector)...")
             from langchain_postgres import PGVector
             self._vector_store_instance = PGVector(
                 embeddings=self.embeddings,
@@ -91,7 +99,6 @@ class EvaluatorSettings:
     @property
     def client(self) -> AsyncOpenAI:
         if self._client is None:
-            print("DEBUG: Initializing OpenAI client...")
             from openai import AsyncOpenAI
             self._client = AsyncOpenAI(
                 api_key=self.GROQ_API_KEY,
@@ -108,9 +115,6 @@ class Settings:
     evaluator: EvaluatorSettings = field(default_factory=EvaluatorSettings)
 
 def get_settings() -> Settings:
-    print("DEBUG: Creating Settings instance...")
     return Settings()
 
-print("DEBUG: Initializing global settings...")
 settings = get_settings()
-print("DEBUG: settings.py initialization complete.")

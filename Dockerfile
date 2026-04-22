@@ -13,11 +13,12 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 COPY . .
 
-COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+COPY entrypoint.sh ./entrypoint.sh
+RUN chmod +x ./entrypoint.sh
 
 ENV PYTHONUNBUFFERED=1
 
 EXPOSE 8000
 
-ENTRYPOINT ["/entrypoint.sh"]
+ENTRYPOINT ["./entrypoint.sh"]
+CMD ["api"]
