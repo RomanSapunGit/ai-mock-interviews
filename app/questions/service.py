@@ -1,12 +1,14 @@
+from __future__ import annotations
 import asyncio
 import logging
 import os
 import tempfile
 from uuid import UUID, uuid4
 
-from langchain_community.document_loaders import PyPDFLoader, TextLoader
-from langchain_core.documents import Document
-from langchain_text_splitters import RecursiveCharacterTextSplitter
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from langchain_core.documents import Document
+
 from sqlalchemy import text, select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -71,6 +73,7 @@ async def load_and_index_file(file_path: str, interview_id: UUID) -> list[str]:
     Nothing is written to the relational DB — the vector store is the sole home
     for RAG source material.
     """
+    from langchain_community.document_loaders import PyPDFLoader, TextLoader
     if file_path.lower().endswith(".pdf"):
         loader = PyPDFLoader(file_path)
     else:
@@ -78,6 +81,7 @@ async def load_and_index_file(file_path: str, interview_id: UUID) -> list[str]:
 
     documents = loader.load()
 
+    from langchain_text_splitters import RecursiveCharacterTextSplitter
     if file_path.lower().endswith((".md", ".markdown")):
         from langchain_text_splitters import Language
         text_splitter = RecursiveCharacterTextSplitter.from_language(
@@ -115,6 +119,7 @@ async def load_and_index_questions(text_content: str, interview_id: UUID) -> lis
     )
     chunks = text_splitter.split_text(text_content)
 
+    from langchain_core.documents import Document
     documents = [
         Document(
             page_content=chunk,
@@ -174,6 +179,7 @@ async def search_questions(
         )
     ).fetchall()
 
+    from langchain_core.documents import Document
     return [
         Document(
             page_content=row[1],

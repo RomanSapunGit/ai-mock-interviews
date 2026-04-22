@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mic, Send, Square, CheckCircle, Loader2, Volume2, Eye, EyeOff } from 'lucide-react';
 import { sessionService } from '../services/sessionService';
+import { API_WS_URL } from '../config';
 import CodeEditor from '../components/CodeEditor';
 import './InterviewSession.css';
 
@@ -80,9 +81,7 @@ const InterviewSession = () => {
   }, [sessionId, started, currentQuestion]);
 
   const connectWebSocket = () => {
-    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:14655';
-    const wsUrl = import.meta.env.VITE_API_WS_URL || baseUrl.replace(/^http/, 'ws');
-    const socket = new WebSocket(`${wsUrl}/sessions/${sessionId}/ws`);
+    const socket = new WebSocket(`${API_WS_URL}/sessions/${sessionId}/ws`);
 
     socket.onopen = () => {
       console.log('WebSocket connected');

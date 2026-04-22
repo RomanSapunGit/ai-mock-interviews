@@ -1,6 +1,5 @@
 import json
 import logging
-from openai import AsyncOpenAI
 from app.config.settings import settings
 from app.ai.prompts import render
 
