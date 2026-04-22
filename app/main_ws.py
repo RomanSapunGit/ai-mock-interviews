@@ -1,15 +1,5 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.sessions.ws_routes import router as ws_sessions_router
-import sentry_sdk
-from app.config.settings import settings
-
-
-try:
-    sentry_sdk.init(dsn=settings.app.SENTRY_DSN_URL, send_default_pii=True)
-except Exception as e:
-    # Sentry is currently disabled/failing due to boot hangs, keeping it silent for now
-    pass
 
 app = FastAPI(
     title="AI Mock Interview WebSocket Service",
@@ -30,11 +20,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-try:
+# Defer heavy imports to speed up initial port binding on Render
+def include_ws_routers(app: FastAPI):
+    from app.sessions.ws_routes import router as ws_sessions_router
     app.include_router(ws_sessions_router, prefix="/sessions", tags=["WebSockets"])
-except Exception as e:
-    import traceback
-    traceback.print_exc()
+
+include_ws_routers(app)
 
 @app.get("/health", tags=["System"])
 async def health_check():

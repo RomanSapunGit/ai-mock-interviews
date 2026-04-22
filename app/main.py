@@ -1,20 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.questions.routes import router as questions_router
-from app.interviews.routes import router as interviews_router
-from app.users.routes import router as users_router
-from app.sessions.routes import router as sessions_router
-from app.auth.router import router as auth_router
-import sentry_sdk
 
-from app.config.settings import settings
-
-
-try:
-    sentry_sdk.init(dsn=settings.app.SENTRY_DSN_URL, send_default_pii=True)
-except Exception as e:
-    # Sentry is currently disabled/failing due to boot hangs, keeping it silent for now
-    pass
 
 app = FastAPI(
     title="AI Mock Interview API",
@@ -35,15 +21,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-try:
+# Defer heavy imports to speed up initial port binding on Render
+def include_routers(app: FastAPI):
+    from app.auth.router import router as auth_router
+    from app.questions.routes import router as questions_router
+    from app.interviews.routes import router as interviews_router
+    from app.users.routes import router as users_router
+    from app.sessions.routes import router as sessions_router
+
     app.include_router(auth_router, prefix="/auth", tags=["Auth"])
     app.include_router(questions_router, prefix="/questions", tags=["Questions"])
     app.include_router(interviews_router, prefix="/interviews", tags=["Interviews"])
     app.include_router(users_router, prefix="/users", tags=["Users"])
     app.include_router(sessions_router, prefix="/sessions", tags=["Sessions"])
-except Exception as e:
-    import traceback
-    traceback.print_exc()
+
+include_routers(app)
 
 @app.get("/health", tags=["System"])
 async def health_check():
