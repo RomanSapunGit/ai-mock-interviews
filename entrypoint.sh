@@ -6,8 +6,7 @@ if [ "$1" == "dev" ]; then
   uv run alembic upgrade head
 fi
 
-# Set port from environment variable with fallback to 8080
-PORT=${PORT:-8080}
+PORT=${PORT:-10000}
 
 echo "Starting application..."
 if [ "$1" == "api" ]; then
