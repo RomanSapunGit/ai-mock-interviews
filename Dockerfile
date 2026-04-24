@@ -8,7 +8,7 @@ ENV UV_PROJECT_ENVIRONMENT="/opt/venv"
 
 COPY pyproject.toml uv.lock ./
 
-RUN --mount=type=cache,target=/root/.cache/uv \
+RUN --mount=type=cache,id=uv-cache,target=/root/.cache/uv \
     uv sync --no-dev
 
 COPY . .

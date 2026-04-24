@@ -43,6 +43,7 @@ async def _index_and_generate_background(
         async with async_session_factory() as db:
             interview = await db.get(Interview, interview_id)
             if interview:
+                has_context = bool(text_content or file_paths)
                 await generate_and_save_questions(
                     db=db,
                     interview_id=interview_id,
@@ -50,6 +51,7 @@ async def _index_and_generate_background(
                     difficulty=interview.difficulty,
                     count=count,
                     topic=topic,
+                    has_context=has_context,
                 )
     except Exception:
         logger.exception("Background index+generate failed for interview %s", interview_id)
@@ -216,6 +218,7 @@ async def generate_and_save_questions(
     difficulty: str | None,
     count: int = 5,
     topic: str | None = None,
+    has_context: bool = False,
 ) -> list[Question]:
     """
     Generate interview questions with the LLM using RAG context from the vector
@@ -224,8 +227,11 @@ async def generate_and_save_questions(
     """
 
     query = topic or role
-    docs = await search_questions(db, query, interview_id, k=10)
-    context_chunks = [doc.page_content for doc in docs]
+    if has_context:
+        docs = await search_questions(db, query, interview_id, k=10)
+        context_chunks = [doc.page_content for doc in docs]
+    else:
+        context_chunks = []
 
     interview = await db.get(Interview, interview_id)
     interview_type = interview.interview_type if interview else "behavioral"

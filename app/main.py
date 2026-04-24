@@ -10,12 +10,14 @@ async def lifespan(app: FastAPI):
     from app.interviews.routes import router as interviews_router
     from app.users.routes import router as users_router
     from app.sessions.routes import router as sessions_router
+    from app.sessions.ws_routes import router as ws_sessions_router
 
     app.include_router(auth_router, prefix="/auth", tags=["Auth"])
     app.include_router(questions_router, prefix="/questions", tags=["Questions"])
     app.include_router(interviews_router, prefix="/interviews", tags=["Interviews"])
     app.include_router(users_router, prefix="/users", tags=["Users"])
     app.include_router(sessions_router, prefix="/sessions", tags=["Sessions"])
+    app.include_router(ws_sessions_router, prefix="/sessions", tags=["WebSockets"])
     yield
 
 app = FastAPI(

@@ -8,22 +8,7 @@ services:
     env_file:
       - .env
     ports:
-      - "8080:8080"
-    restart: always
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-  api-websocket:
-    build: .
-    container_name: ai-interview-ws
-    command: api-websocket
-    env_file:
-      - .env
-    ports:
-      - "8081:8080"
+      - "80:10000"
     restart: always
     logging:
       driver: "json-file"
