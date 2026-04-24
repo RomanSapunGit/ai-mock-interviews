@@ -1,10 +1,8 @@
 #!/bin/bash
 
 set -e
-if [ "$1" == "dev" ]; then
-  echo "Running migrations..."
-  uv run alembic upgrade head
-fi
+echo "Running migrations..."
+uv run alembic upgrade head
 
 PORT=${PORT:-10000}
 
