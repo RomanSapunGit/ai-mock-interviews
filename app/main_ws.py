@@ -1,12 +1,21 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Defer heavy imports to speed up initial port binding on Render
+    from app.sessions.ws_routes import router as ws_sessions_router
+    app.include_router(ws_sessions_router, prefix="/sessions", tags=["WebSockets"])
+    yield
 
 app = FastAPI(
     title="AI Mock Interview WebSocket Service",
     description="Dedicated WebSocket service for processing real-time audio streams and AI evaluations during interviews.",
     version="1.0.0",
     docs_url="/docs",
-    redoc_url="/redoc"
+    redoc_url="/redoc",
+    lifespan=lifespan
 )
 
 app.add_middleware(
@@ -20,12 +29,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Defer heavy imports to speed up initial port binding on Render
-def include_ws_routers(app: FastAPI):
-    from app.sessions.ws_routes import router as ws_sessions_router
-    app.include_router(ws_sessions_router, prefix="/sessions", tags=["WebSockets"])
 
-include_ws_routers(app)
 
 @app.get("/health", tags=["System"])
 async def health_check():
