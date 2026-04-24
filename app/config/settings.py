@@ -22,6 +22,13 @@ def _get_database_url() -> str:
     if not url:
         return "postgresql+asyncpg://postgres:postgres@localhost:5432/ai_mock_interviews"
     
+    # asyncpg doesn't support 'sslmode', but psycopg does. 
+    # Strip it out here for SQLAlchemy's asyncpg engine.
+    if "?sslmode=require" in url:
+        url = url.replace("?sslmode=require", "")
+    elif "&sslmode=require" in url:
+        url = url.replace("&sslmode=require", "")
+    
     # Standardize protocol for asyncpg compatibility
     if "://" in url:
         scheme, rest = url.split("://", 1)
@@ -82,10 +89,16 @@ class LangChainSettings:
     def vector_store(self) -> PGVector:
         if self._vector_store_instance is None:
             from langchain_postgres import PGVector
+            
+            # Re-add sslmode for psycopg if it's external (Render)
+            conn_str = RAW_DATABASE_URL.replace("+asyncpg", "+psycopg")
+            if ".onrender.com" in conn_str and "sslmode=require" not in conn_str:
+                conn_str += "?sslmode=require" if "?" not in conn_str else "&sslmode=require"
+
             self._vector_store_instance = PGVector(
                 embeddings=self.embeddings,
                 collection_name=self.collection_name,
-                connection=RAW_DATABASE_URL.replace("+asyncpg", "+psycopg"),
+                connection=conn_str,
                 use_jsonb=True,
             )
         return self._vector_store_instance
