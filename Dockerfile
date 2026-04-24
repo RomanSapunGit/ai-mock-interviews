@@ -8,7 +8,7 @@ ENV UV_PROJECT_ENVIRONMENT="/opt/venv"
 
 COPY pyproject.toml uv.lock ./
 
-RUN uv sync --no-dev
+RUN uv sync --no-dev && rm -rf /root/.cache/uv
 
 COPY . .
 

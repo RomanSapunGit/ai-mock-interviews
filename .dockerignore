@@ -4,11 +4,11 @@ __pycache__/
 *.so
 
 # Virtual environments
-.venv/
+.venv
 venv/
 
 # Version control
-.git/
+.git
 .gitignore
 
 # IDEs
@@ -27,6 +27,10 @@ dist/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+
+# NPM
+node_modules
+frontend/node_modules
 
 # Docs / misc
 README.md
