@@ -111,7 +111,7 @@ async def load_and_index_questions(text_content: str, interview_id: UUID) -> lis
     """
     Chunks plain text and indexes it in the vector store only.
     """
-    from langchain_text_splitters import Language
+    from langchain_text_splitters import Language, RecursiveCharacterTextSplitter
     text_splitter = RecursiveCharacterTextSplitter.from_language(
         language=Language.MARKDOWN,
         chunk_size=1000,
