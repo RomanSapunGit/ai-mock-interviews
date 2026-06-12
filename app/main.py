@@ -1,3 +1,6 @@
+import logging
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -6,6 +9,36 @@ from app.config.settings import settings
 if settings.app.SENTRY_DSN_URL:
     import sentry_sdk
     sentry_sdk.init(dsn=settings.app.SENTRY_DSN_URL)
+
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Question generation runs as an in-process background task and does not
+    # survive restarts (deploys, OOM kills). Anything still marked
+    # "generating" from a previous process is dead — flag it as failed so
+    # users can retry instead of waiting forever.
+    try:
+        from sqlalchemy import update
+        from app.db.models import Interview
+        from app.db.session import async_session_factory
+
+        async with async_session_factory() as db:
+            result = await db.execute(
+                update(Interview)
+                .where(Interview.status == "generating")
+                .values(status="failed")
+            )
+            await db.commit()
+        if result.rowcount:
+            logger.warning(
+                "Marked %d interview(s) stuck in 'generating' as failed after restart",
+                result.rowcount,
+            )
+    except Exception:
+        logger.exception("Startup recovery of stuck interviews failed")
+    yield
 
 from app.auth.router import router as auth_router
 from app.questions.routes import router as questions_router
@@ -20,6 +53,7 @@ app = FastAPI(
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
