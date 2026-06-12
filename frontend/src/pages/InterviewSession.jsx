@@ -81,7 +81,10 @@ const InterviewSession = () => {
   }, [sessionId, started, currentQuestion]);
 
   const connectWebSocket = () => {
-    const socket = new WebSocket(`${API_WS_URL}/sessions/${sessionId}/ws`);
+    const token = localStorage.getItem('access_token') || '';
+    const socket = new WebSocket(
+      `${API_WS_URL}/sessions/${sessionId}/ws?token=${encodeURIComponent(token)}`
+    );
 
     socket.onopen = () => {
       console.log('WebSocket connected');
