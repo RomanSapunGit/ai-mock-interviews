@@ -59,7 +59,8 @@ class AppSettings:
     SECRET_KEY: str = getenv("SECRET_KEY", "")
     DEBUG: bool = bool(int(getenv("DEBUG", "0")))
 
-    GROQ_MODEL: str = getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+    # LLM_MODEL wins when set; GROQ_MODEL kept as a fallback for existing envs.
+    LLM_MODEL: str = getenv("LLM_MODEL", "") or getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
     GROQ_WHISPER_MODEL: str = getenv("GROQ_WHISPER_MODEL", "whisper-large-v3-turbo")
     # Embeddings run on Google's API; the old EMBEDDING_MODEL /
     # EMBEDDING_DIMENSIONS vars are intentionally ignored so stale values in
@@ -119,17 +120,37 @@ class LangChainSettings:
 @dataclass
 class EvaluatorSettings:
     GROQ_API_KEY: str = getenv("GROQ_API_KEY", "")
+    # Chat LLM (generation, evaluation, hints): any OpenAI-compatible
+    # endpoint. Defaults to Groq; to use Gemini instead set
+    #   LLM_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/
+    #   LLM_API_KEY=<gemini key>
+    #   LLM_MODEL=gemini-2.5-flash
+    # Audio transcription always uses Groq (Whisper has no Gemini-compatible
+    # equivalent), hence the separate client below.
+    LLM_BASE_URL: str = getenv("LLM_BASE_URL", "") or "https://api.groq.com/openai/v1"
+    LLM_API_KEY: str = getenv("LLM_API_KEY", "") or getenv("GROQ_API_KEY", "")
     _client: AsyncOpenAI | None = field(default=None, init=False, repr=False)
+    _transcription_client: AsyncOpenAI | None = field(default=None, init=False, repr=False)
 
     @property
     def client(self) -> AsyncOpenAI:
         if self._client is None:
             from openai import AsyncOpenAI
             self._client = AsyncOpenAI(
+                api_key=self.LLM_API_KEY,
+                base_url=self.LLM_BASE_URL,
+            )
+        return self._client
+
+    @property
+    def transcription_client(self) -> AsyncOpenAI:
+        if self._transcription_client is None:
+            from openai import AsyncOpenAI
+            self._transcription_client = AsyncOpenAI(
                 api_key=self.GROQ_API_KEY,
                 base_url="https://api.groq.com/openai/v1",
             )
-        return self._client
+        return self._transcription_client
 
 
 @dataclass

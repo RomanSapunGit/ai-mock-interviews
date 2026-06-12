@@ -33,7 +33,7 @@ async def evaluate_answer(
     )
 
     response = await settings.evaluator.client.chat.completions.create(
-        model=settings.app.GROQ_MODEL,
+        model=settings.app.LLM_MODEL,
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
@@ -72,7 +72,7 @@ async def generate_followup_question(
     )
 
     response = await settings.evaluator.client.chat.completions.create(
-        model=settings.app.GROQ_MODEL,
+        model=settings.app.LLM_MODEL,
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
@@ -101,7 +101,7 @@ async def evaluate_session_overall(
 
     try:
         response = await settings.evaluator.client.chat.completions.create(
-            model=settings.app.GROQ_MODEL,
+            model=settings.app.LLM_MODEL,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
@@ -147,7 +147,7 @@ async def classify_intent(transcript: str, question: str) -> str:
 
     try:
         response = await settings.evaluator.client.chat.completions.create(
-            model=settings.app.GROQ_MODEL,
+            model=settings.app.LLM_MODEL,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
@@ -177,7 +177,7 @@ async def generate_hint(question: str, code: str, language: str, transcript: str
 
     try:
         response = await settings.evaluator.client.chat.completions.create(
-            model=settings.app.GROQ_MODEL,
+            model=settings.app.LLM_MODEL,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},

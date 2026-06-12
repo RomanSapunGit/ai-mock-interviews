@@ -33,7 +33,7 @@ async def generate_questions(
     )
 
     response = await settings.evaluator.client.chat.completions.create(
-        model=settings.app.GROQ_MODEL,
+        model=settings.app.LLM_MODEL,
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
