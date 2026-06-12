@@ -6,7 +6,9 @@ from pydantic import BaseModel, ConfigDict
 from app.schemas.questions import QuestionRead
 
 class SessionCreate(BaseModel):
-    user_id: UUID
+    # user_id is ignored when sent by clients; the API uses the
+    # authenticated user's id. Kept optional for older clients.
+    user_id: UUID | None = None
     interview_id: UUID
 
 class SessionRead(BaseModel):

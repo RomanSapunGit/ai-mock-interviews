@@ -10,7 +10,9 @@ class InterviewBase(BaseModel):
     interview_type: str = "behavioral"
 
 class InterviewCreate(InterviewBase):
-    user_id: UUID
+    # Ignored when sent by clients; the API overwrites it with the
+    # authenticated user's id.
+    user_id: UUID | None = None
     status: str = "pending"
 
 class InterviewUpdate(BaseModel):
