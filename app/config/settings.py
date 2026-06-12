@@ -4,31 +4,27 @@ from dataclasses import dataclass, field
 from os import getenv
 from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from langchain_huggingface import HuggingFaceEmbeddings
-
 from dotenv import load_dotenv
 load_dotenv()
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from langchain_postgres import PGVector
     from openai import AsyncOpenAI
-    from langchain_huggingface import HuggingFaceEmbeddings
+    from app.ai.embeddings import FastEmbedEmbeddings
 
 def _get_database_url() -> str:
     url = getenv("DATABASE_URL")
     if not url:
         return "postgresql+asyncpg://postgres:postgres@localhost:5432/ai_mock_interviews"
-    
-    # asyncpg doesn't support 'sslmode', but psycopg does. 
+
+    # asyncpg doesn't support 'sslmode', but psycopg does.
     # Strip it out here for SQLAlchemy's asyncpg engine.
     if "?sslmode=require" in url:
         url = url.replace("?sslmode=require", "")
     elif "&sslmode=require" in url:
         url = url.replace("&sslmode=require", "")
-    
+
     # Standardize protocol for asyncpg compatibility
     if "://" in url:
         scheme, rest = url.split("://", 1)
@@ -60,7 +56,7 @@ class DatabaseSettings:
 
 @dataclass
 class AppSettings:
-    SECRET_KEY: str = getenv("SECRET_KEY", "changeme")
+    SECRET_KEY: str = getenv("SECRET_KEY", "")
     DEBUG: bool = bool(int(getenv("DEBUG", "0")))
 
     GROQ_MODEL: str = getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
@@ -69,19 +65,29 @@ class AppSettings:
     EMBEDDING_DIMENSIONS: int = int(getenv("EMBEDDING_DIMENSIONS", "384"))
     SENTRY_DSN_URL: str = getenv("SENTRY_DSN_URL", "")
 
+    def __post_init__(self) -> None:
+        if self.SECRET_KEY in ("", "changeme"):
+            if self.DEBUG:
+                self.SECRET_KEY = "dev-only-insecure-secret-key"
+            else:
+                raise RuntimeError(
+                    "SECRET_KEY is not configured. Set the SECRET_KEY environment "
+                    "variable (or DEBUG=1 for local development)."
+                )
+
 
 @dataclass
 class LangChainSettings:
-    _embeddings: HuggingFaceEmbeddings | None = field(default=None, init=False, repr=False)
+    _embeddings: FastEmbedEmbeddings | None = field(default=None, init=False, repr=False)
     collection_name: str = "interview_questions"
     _vector_store_instance: PGVector | None = field(default=None, init=False, repr=False)
 
     @property
-    def embeddings(self) -> HuggingFaceEmbeddings:
+    def embeddings(self) -> FastEmbedEmbeddings:
         if self._embeddings is None:
-            from langchain_huggingface import HuggingFaceEmbeddings
-            self._embeddings = HuggingFaceEmbeddings(
-                model_name="sentence-transformers/all-MiniLM-L6-v2"
+            from app.ai.embeddings import FastEmbedEmbeddings
+            self._embeddings = FastEmbedEmbeddings(
+                model_name=getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
             )
         return self._embeddings
 
@@ -89,7 +95,7 @@ class LangChainSettings:
     def vector_store(self) -> PGVector:
         if self._vector_store_instance is None:
             from langchain_postgres import PGVector
-            
+
             # Re-add sslmode for psycopg if it's external (Render)
             conn_str = RAW_DATABASE_URL.replace("+asyncpg", "+psycopg")
             if ".onrender.com" in conn_str and "sslmode=require" not in conn_str:
