@@ -6,9 +6,9 @@ ENV UV_COMPILE_BYTECODE=1
 ENV UV_LINK_MODE=copy
 ENV UV_PROJECT_ENVIRONMENT="/opt/venv"
 
-COPY pyproject.toml ./
+COPY pyproject.toml uv.lock ./
 
-RUN uv sync --no-dev && rm -rf /root/.cache/uv
+RUN uv sync --frozen --no-dev && rm -rf /root/.cache/uv
 
 COPY . .
 

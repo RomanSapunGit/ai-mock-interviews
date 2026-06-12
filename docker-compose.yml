@@ -1,17 +1,64 @@
-version: '3.8'
-
 services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: ai-interview-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ai_mock_interviews
+    ports:
+      # Published for running the dev server / alembic from the host.
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ai_mock_interviews"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: always
+
   api:
     build: .
     container_name: ai-interview-api
     command: api
     env_file:
       - .env
+    environment:
+      # Inside the compose network the database host is the service name,
+      # overriding whatever localhost URL the .env file carries.
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/ai_mock_interviews
     ports:
-      - "80:10000"
+      - "8000:10000"
+    depends_on:
+      db:
+        condition: service_healthy
     restart: always
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
+
+  frontend:
+    build: ./frontend
+    container_name: ai-interview-frontend
+    environment:
+      # These URLs are used by the browser, so they point at the published
+      # host ports, not the internal compose hostnames. The api service also
+      # serves the WebSocket router, hence the same port for both.
+      VITE_API_BASE_URL: http://localhost:8000
+      VITE_API_WS_URL: ws://localhost:8000
+    ports:
+      - "5173:5173"
+    volumes:
+      # Live-reload against the host sources; keep container node_modules.
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+      - ./frontend/index.html:/app/index.html
+    depends_on:
+      - api
+    restart: always
+
+volumes:
+  pgdata:

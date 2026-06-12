@@ -11,12 +11,16 @@ cp .env.example .env
 ```
 
 ### 2. Run with Docker (Recommended)
-Build and start the full environment (API + Database):
+Build and start the full environment (Frontend + API + Database):
 ```bash
 docker compose up --build -d
 ```
-- **API**: [http://localhost:8000](http://localhost:8000)
+- **Frontend**: [http://localhost:5173](http://localhost:5173) (Vite dev server with hot reload from `frontend/src`)
+- **API**: [http://localhost:8000](http://localhost:8000) (also serves the WebSocket endpoint)
 - **Docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
+- **Postgres (pgvector)**: `localhost:5433` (published for running the dev server or Alembic from the host)
+
+Migrations run automatically when the API container starts.
 
 ---
 
@@ -27,8 +31,7 @@ docker compose up --build -d
 - **Add a package**: `uv add <package_name>`
 
 ### Application Execution
-- **Run local REST server**: `uv run uvicorn app.main:app --reload`
-- **Run local WS server**: `uv run uvicorn app.main_ws:app --reload --port 8001`
+- **Run local server (REST + WebSocket)**: `uv run uvicorn app.main:app --reload`
 - **Run with Docker**: `docker compose up -d`
 
 ### Database Migrations (Alembic)
@@ -51,8 +54,7 @@ This project uses **SQLAlchemy** with **Alembic** and **pgvector**.
 ```text
 ai-mock-interviews-fullstack/
 ├── app/                  # FastAPI Backend application
-│   ├── main.py           # REST API Entrypoint
-│   ├── main_ws.py        # WebSocket Engine Entrypoint
+│   ├── main.py           # Application entrypoint (REST + WebSocket)
 │   ├── ai/               # LLM integrations (LangChain, Prompts, Evaluators)
 │   ├── auth/             # JWT authentication & password hashing
 │   ├── config/           # Pydantic environment configuration
