@@ -47,12 +47,16 @@ async def _index_and_generate_background(
 
     await _set_status("generating")
     try:
+        async with async_session_factory() as db:
+            interview = await db.get(Interview, interview_id)
+            user_id = interview.user_id if interview else None
+
         if text_content:
-            await load_and_index_questions(text_content, interview_id)
+            await load_and_index_questions(text_content, interview_id, user_id)
 
         for file_path in file_paths:
             try:
-                await load_and_index_file(file_path, interview_id)
+                await load_and_index_file(file_path, interview_id, user_id)
             finally:
                 if os.path.exists(file_path):
                     os.remove(file_path)
@@ -88,7 +92,9 @@ def schedule_generation(
     _background_tasks.add(task)
     task.add_done_callback(_background_tasks.discard)
 
-async def load_and_index_file(file_path: str, interview_id: UUID) -> list[str]:
+async def load_and_index_file(
+    file_path: str, interview_id: UUID, user_id: UUID | None = None
+) -> list[str]:
     """
     Loads a file (PDF or TXT), chunks it, and indexes it in the vector store only.
     Nothing is written to the relational DB — the vector store is the sole home
@@ -119,6 +125,8 @@ async def load_and_index_file(file_path: str, interview_id: UUID) -> list[str]:
 
     for chunk in chunks:
         chunk.metadata["interview_id"] = str(interview_id)
+        if user_id:
+            chunk.metadata["user_id"] = str(user_id)
         if "id" not in chunk.metadata:
             chunk.metadata["id"] = str(uuid4())
 
@@ -128,7 +136,9 @@ async def load_and_index_file(file_path: str, interview_id: UUID) -> list[str]:
         ids=[c.metadata["id"] for c in chunks],
     )
 
-async def load_and_index_questions(text_content: str, interview_id: UUID) -> list[str]:
+async def load_and_index_questions(
+    text_content: str, interview_id: UUID, user_id: UUID | None = None
+) -> list[str]:
     """
     Chunks plain text and indexes it in the vector store only.
     """
@@ -141,10 +151,13 @@ async def load_and_index_questions(text_content: str, interview_id: UUID) -> lis
     chunks = text_splitter.split_text(text_content)
 
     from langchain_core.documents import Document
+    metadata_base = {"interview_id": str(interview_id)}
+    if user_id:
+        metadata_base["user_id"] = str(user_id)
     documents = [
         Document(
             page_content=chunk,
-            metadata={"interview_id": str(interview_id), "id": str(uuid4())},
+            metadata={**metadata_base, "id": str(uuid4())},
         )
         for chunk in chunks
     ]
@@ -212,6 +225,24 @@ async def search_questions(
         for row in rows
     ]
 
+# Stricter than the in-interview cutoff: borrowed material must be clearly
+# related to the new interview's topic/role or it pollutes generation.
+_BORROWED_CONTEXT_MAX_DISTANCE = 0.6
+
+async def search_user_material(query: str, user_id: UUID, k: int = 10) -> list[Document]:
+    """
+    Semantic search across ALL of a user's uploaded material, regardless of
+    which interview it was uploaded for. Only chunks owned by this user are
+    considered — material must never leak between users.
+    """
+    docs_with_scores = await asyncio.to_thread(
+        settings.lang_chain.vector_store.similarity_search_with_score,
+        query,
+        k=k,
+        filter={"user_id": str(user_id)},
+    )
+    return [doc for doc, score in docs_with_scores if score <= _BORROWED_CONTEXT_MAX_DISTANCE]
+
 async def get_question(question_id: str) -> Document | None:
     docs = await asyncio.to_thread(
         settings.lang_chain.vector_store.get_by_ids,
@@ -248,15 +279,32 @@ async def generate_and_save_questions(
     Raises on LLM or parsing failure.
     """
 
+    interview = await db.get(Interview, interview_id)
+    interview_type = interview.interview_type if interview else "behavioral"
+
     query = topic or role
     if has_context:
         docs = await search_questions(db, query, interview_id, k=10)
-        context_chunks = [doc.page_content for doc in docs]
     else:
-        context_chunks = []
-
-    interview = await db.get(Interview, interview_id)
-    interview_type = interview.interview_type if interview else "behavioral"
+        # No material uploaded for this interview: borrow relevant chunks
+        # from the user's previously uploaded material (their library).
+        docs = []
+        borrow_query = topic or role or (interview.title if interview else None)
+        if interview and borrow_query:
+            try:
+                docs = await search_user_material(borrow_query, interview.user_id, k=10)
+                if docs:
+                    logger.info(
+                        "Borrowed %d chunks from user library for interview %s",
+                        len(docs), interview_id,
+                    )
+            except Exception:
+                # Borrowing is best-effort; generation proceeds without context.
+                logger.warning(
+                    "User-library search failed for interview %s", interview_id,
+                    exc_info=True,
+                )
+    context_chunks = [doc.page_content for doc in docs]
 
     generated = await llm_generate(
         context_chunks=context_chunks,
