@@ -20,7 +20,11 @@ async def evaluate_answer(
     Returns (score, feedback) where score is 0.0–10.0.
     Raises on API or parsing failure.
     """
-    template_name = "evaluator_coding_user" if question_type == "coding" else "evaluator_user"
+    evaluator_templates = {
+        "coding": "evaluator_coding_user",
+        "technical": "evaluator_technical_user",
+    }
+    template_name = evaluator_templates.get(question_type, "evaluator_user")
     system_prompt = render("evaluator_system")
     user_prompt = render(
         template_name,

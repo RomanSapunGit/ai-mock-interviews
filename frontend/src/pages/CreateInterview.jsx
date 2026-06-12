@@ -92,10 +92,17 @@ const CreateInterview = () => {
                 </button>
                 <button
                   type="button"
+                  className={interviewType === 'technical' ? 'active' : ''}
+                  onClick={() => setInterviewType('technical')}
+                >
+                  Technical (Q&amp;A)
+                </button>
+                <button
+                  type="button"
                   className={interviewType === 'coding' ? 'active' : ''}
                   onClick={() => setInterviewType('coding')}
                 >
-                  Coding (Technical)
+                  Live Coding
                 </button>
               </div>
             </div>

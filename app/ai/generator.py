@@ -22,7 +22,11 @@ async def generate_questions(
     context = "\n\n---\n\n".join(context_chunks) if context_chunks else ""
 
     system_prompt = render("generator_system")
-    template_name = "generator_coding_user" if interview_type == "coding" else "generator_user"
+    generator_templates = {
+        "coding": "generator_coding_user",
+        "technical": "generator_technical_user",
+    }
+    template_name = generator_templates.get(interview_type, "generator_user")
     user_prompt = render(
         template_name,
         count=str(count),
@@ -55,7 +59,7 @@ async def generate_questions(
             result.append(
                 {
                     "text": str(q["text"]),
-                    "category": str(q.get("category", "coding")),
+                    "category": str(q.get("category", interview_type)),
                     "difficulty": str(q.get("difficulty", difficulty or "medium")),
                     "question_type": str(q.get("question_type", interview_type)),
                     "starter_code": q.get("starter_code"),
