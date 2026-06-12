@@ -20,20 +20,7 @@ async def list_user_interviews(db: AsyncSession, user_id: UUID) -> list[Intervie
     result = await db.execute(
         select(Interview).where(Interview.user_id == user_id).order_by(Interview.created_at.desc())
     )
-    interviews = list(result.scalars().all())
-
-    from app.db.models import Question
-    for interview in interviews:
-        if interview.status != 'completed':
-            q_res = await db.execute(select(Question).where(Question.interview_id == interview.id, Question.status == 'active'))
-            if not q_res.scalars().first():
-                q_all_res = await db.execute(select(Question.id).where(Question.interview_id == interview.id))
-                if q_all_res.scalars().first():
-                    interview.status = 'completed'
-                    db.add(interview)
-
-    await db.commit()
-    return interviews
+    return list(result.scalars().all())
 
 async def update_interview(
     db: AsyncSession, db_interview: Interview, interview_in: InterviewUpdate

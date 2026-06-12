@@ -29,6 +29,14 @@ async def _index_and_generate_background(
 ) -> None:
     from app.db.session import async_session_factory
 
+    async def _set_status(status: str) -> None:
+        async with async_session_factory() as db:
+            interview = await db.get(Interview, interview_id)
+            if interview:
+                interview.status = status
+                await db.commit()
+
+    await _set_status("generating")
     try:
         if text_content:
             await load_and_index_questions(text_content, interview_id)
@@ -53,8 +61,10 @@ async def _index_and_generate_background(
                     topic=topic,
                     has_context=has_context,
                 )
+        await _set_status("active")
     except Exception:
         logger.exception("Background index+generate failed for interview %s", interview_id)
+        await _set_status("failed")
 
 def schedule_generation(
     interview_id: UUID,
@@ -393,24 +403,24 @@ async def delete_question_by_id(
 
 async def get_next_question(db: AsyncSession, session: Session) -> Question | None:
     """
-    Returns a random active question for the session's interview that has not
-    been answered yet in this session. Returns None when all questions are exhausted.
+    Returns the next question for the session's interview that has not been
+    answered yet *in this session*. Returns None when all questions are exhausted.
+
+    Progress is tracked per session via Answer rows — question.status is a
+    cross-session display flag and intentionally not consulted here, so the
+    same interview can be practiced in multiple sessions.
     """
-    from sqlalchemy import select, func
+    from sqlalchemy import select
 
     answered_stmt = select(Answer.question_id).where(Answer.session_id == session.id)
     answered_ids = (await db.execute(answered_stmt)).scalars().all()
 
-    query = (
-        select(Question)
-        .where(
-            Question.interview_id == session.interview_id,
-            Question.status == "active"
-        )
-    )
+    query = select(Question).where(Question.interview_id == session.interview_id)
 
     if answered_ids:
         query = query.where(Question.id.notin_(answered_ids))
 
-    result = await db.execute(query.order_by(Question.order).limit(1))
-    return result.scalar_one_or_none()
+    result = await db.execute(
+        query.order_by(Question.order, Question.created_at).limit(1)
+    )
+    return result.scalars().first()

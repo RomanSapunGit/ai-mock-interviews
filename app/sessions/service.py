@@ -1,13 +1,18 @@
+import asyncio
 import logging
 from datetime import datetime, timezone
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession as DbSession
 
 from app.db.models import Answer, Interview, Question, Session
 
 logger = logging.getLogger(__name__)
+
+# Keep references to fire-and-forget tasks so they are not garbage-collected
+# mid-flight and their exceptions are logged by the done callback.
+_background_tasks: set[asyncio.Task] = set()
 
 async def start_session(db: DbSession, user_id: UUID, interview_id: UUID) -> Session:
     session = Session(
@@ -48,7 +53,7 @@ async def end_session(db: DbSession, session: Session) -> Session:
                 question = await db.get(Question, ans.question_id)
                 qa_pairs.append({
                     "question": question.text if question else "Unknown question",
-                    "answer": ans.text or "No answer provided",
+                    "answer": ans.text or ans.code or "No answer provided",
                     "score": ans.score or 0.0
                 })
 
@@ -59,21 +64,30 @@ async def end_session(db: DbSession, session: Session) -> Session:
             )
             session.score = score
             session.feedback = feedback
-    except Exception as e:
-        logger.error(f"Failed to generate overall session feedback: {e}")
+    except Exception:
+        logger.exception("Failed to generate overall session feedback")
 
-    if session.interview_id:
-        from sqlalchemy import select
-        from app.db.models import Question, Interview
-        interview = await db.get(Interview, session.interview_id)
-        if interview:
-            unanswered_query = select(Question).where(
-                Question.interview_id == session.interview_id,
-                Question.status == 'active'
+    interview = await db.get(Interview, session.interview_id)
+    if interview:
+        total_questions = (
+            await db.execute(
+                select(func.count())
+                .select_from(Question)
+                .where(Question.interview_id == session.interview_id)
             )
-            unanswered = (await db.execute(unanswered_query)).scalars().first()
-            if not unanswered:
-                interview.status = 'completed'
+        ).scalar_one()
+        unanswered = (
+            await db.execute(
+                select(Question.id).where(
+                    Question.interview_id == session.interview_id,
+                    Question.status == "active",
+                ).limit(1)
+            )
+        ).scalar_one_or_none()
+        # Never flag an interview as completed while it has no questions yet
+        # (e.g. generation still running in the background).
+        if total_questions > 0 and unanswered is None:
+            interview.status = "completed"
 
     await db.commit()
     await db.refresh(session)
@@ -121,6 +135,8 @@ async def evaluate_and_maybe_followup(
     """
     Evaluate an answer and potentially generate a follow-up question.
     Returns (score, feedback, followup_question_or_none).
+    Raises when the evaluation itself fails; follow-up generation failures
+    are logged and swallowed (the evaluation result is still returned).
     """
     from app.ai.evaluator import generate_followup_question
 
@@ -140,26 +156,86 @@ async def evaluate_and_maybe_followup(
     )
 
     followup_q = None
-    if score >= 7.5:
-        followup_text = await generate_followup_question(
-            question=question.text,
-            answer=answer_text,
-            role=role,
-            difficulty=difficulty,
-        )
+    # Only first-level questions spawn follow-ups, so a strong candidate
+    # cannot trigger an endless chain of generated questions.
+    if score >= 7.5 and question.parent_question_id is None:
+        followup_text = None
+        try:
+            followup_text = await generate_followup_question(
+                question=question.text,
+                answer=answer_text,
+                role=role,
+                difficulty=difficulty,
+            )
+        except Exception:
+            logger.exception("Follow-up generation failed for question %s", question.id)
 
-        followup_q = Question(
-            interview_id=session.interview_id,
-            text=followup_text,
-            category=question.category,
-            difficulty=question.difficulty,
-            order=question.order + 1,
-        )
-        db.add(followup_q)
-        await db.commit()
-        await db.refresh(followup_q)
+        if followup_text:
+            max_order = (
+                await db.execute(
+                    select(func.coalesce(func.max(Question.order), 0)).where(
+                        Question.interview_id == session.interview_id
+                    )
+                )
+            ).scalar_one()
+            followup_q = Question(
+                interview_id=session.interview_id,
+                text=followup_text,
+                category=question.category,
+                difficulty=question.difficulty,
+                question_type=question.question_type,
+                parent_question_id=question.id,
+                order=max_order + 1,
+            )
+            db.add(followup_q)
+            await db.commit()
+            await db.refresh(followup_q)
 
     return score, feedback, followup_q
+
+def schedule_evaluation(
+    session_id: UUID,
+    question_id: UUID,
+    answer_id: UUID,
+    answer_text: str,
+    transcript: str | None = None,
+    examples: str | None = None,
+) -> None:
+    """Fire-and-forget evaluation for the REST answer flow."""
+    task = asyncio.create_task(
+        _evaluate_in_background(
+            session_id, question_id, answer_id, answer_text, transcript, examples
+        )
+    )
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
+
+async def _evaluate_in_background(
+    session_id: UUID,
+    question_id: UUID,
+    answer_id: UUID,
+    answer_text: str,
+    transcript: str | None,
+    examples: str | None,
+) -> None:
+    from app.db.session import async_session_factory
+
+    try:
+        async with async_session_factory() as db:
+            session = await db.get(Session, session_id)
+            question = await db.get(Question, question_id)
+            if session and question:
+                await evaluate_and_maybe_followup(
+                    db=db,
+                    session=session,
+                    question=question,
+                    answer_id=answer_id,
+                    answer_text=answer_text,
+                    transcript=transcript,
+                    examples=examples,
+                )
+    except Exception:
+        logger.exception("Background evaluation failed for answer %s", answer_id)
 
 async def create_answer(
     db: DbSession,
@@ -169,6 +245,12 @@ async def create_answer(
     code: str | None = None,
     language: str | None = None,
 ) -> Answer:
+    """Persist an answer.
+
+    Raises sqlalchemy.exc.IntegrityError when the question was already
+    answered in this session (unique constraint on session_id+question_id);
+    callers translate that into their protocol-specific error.
+    """
     answer = Answer(
         session_id=session_id,
         question_id=question_id,
@@ -177,13 +259,13 @@ async def create_answer(
         language=language
     )
     db.add(answer)
-    await db.commit()
-    await db.refresh(answer)
-
     question = await db.get(Question, question_id)
     if question:
+        # Display state only ("answered at least once"); session progress is
+        # tracked by Answer rows, not by this flag.
         question.status = "completed"
-        await db.commit()
+    await db.commit()
+    await db.refresh(answer)
     return answer
 
 async def list_answers(db: DbSession, session_id: UUID) -> list[Answer]:
