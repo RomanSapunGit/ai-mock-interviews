@@ -10,12 +10,6 @@ COPY pyproject.toml uv.lock ./
 
 RUN uv sync --frozen --no-dev && rm -rf /root/.cache/uv
 
-# Bake the embedding model into the image so containers never download it
-# from HuggingFace at runtime — on small instances that download/load was
-# slow enough to look like a hang and risked OOM during cold start.
-ENV FASTEMBED_CACHE_PATH=/opt/fastembed_cache
-RUN /opt/venv/bin/python -c "from fastembed import TextEmbedding; TextEmbedding('sentence-transformers/all-MiniLM-L6-v2')"
-
 COPY . .
 
 COPY entrypoint.sh /entrypoint.sh

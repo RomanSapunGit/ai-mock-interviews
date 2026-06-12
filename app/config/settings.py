@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 if TYPE_CHECKING:
     from langchain_postgres import PGVector
     from openai import AsyncOpenAI
-    from app.ai.embeddings import FastEmbedEmbeddings
+    from app.ai.embeddings import GeminiEmbeddings
 
 def _get_database_url() -> str:
     url = getenv("DATABASE_URL")
@@ -61,8 +61,12 @@ class AppSettings:
 
     GROQ_MODEL: str = getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
     GROQ_WHISPER_MODEL: str = getenv("GROQ_WHISPER_MODEL", "whisper-large-v3-turbo")
-    EMBEDDING_MODEL: str = getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
-    EMBEDDING_DIMENSIONS: int = int(getenv("EMBEDDING_DIMENSIONS", "384"))
+    # Embeddings run on Google's API; the old EMBEDDING_MODEL /
+    # EMBEDDING_DIMENSIONS vars are intentionally ignored so stale values in
+    # deployment environments can't select an incompatible model.
+    GEMINI_API_KEY: str = getenv("GEMINI_API_KEY", "")
+    GEMINI_EMBEDDING_MODEL: str = getenv("GEMINI_EMBEDDING_MODEL", "gemini-embedding-001")
+    GEMINI_EMBEDDING_DIMENSIONS: int = int(getenv("GEMINI_EMBEDDING_DIMENSIONS", "768"))
     SENTRY_DSN_URL: str = getenv("SENTRY_DSN_URL", "")
 
     def __post_init__(self) -> None:
@@ -78,16 +82,18 @@ class AppSettings:
 
 @dataclass
 class LangChainSettings:
-    _embeddings: FastEmbedEmbeddings | None = field(default=None, init=False, repr=False)
+    _embeddings: GeminiEmbeddings | None = field(default=None, init=False, repr=False)
     collection_name: str = "interview_questions"
     _vector_store_instance: PGVector | None = field(default=None, init=False, repr=False)
 
     @property
-    def embeddings(self) -> FastEmbedEmbeddings:
+    def embeddings(self) -> GeminiEmbeddings:
         if self._embeddings is None:
-            from app.ai.embeddings import FastEmbedEmbeddings
-            self._embeddings = FastEmbedEmbeddings(
-                model_name=getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
+            from app.ai.embeddings import GeminiEmbeddings
+            self._embeddings = GeminiEmbeddings(
+                api_key=settings.app.GEMINI_API_KEY,
+                model=settings.app.GEMINI_EMBEDDING_MODEL,
+                dimensions=settings.app.GEMINI_EMBEDDING_DIMENSIONS,
             )
         return self._embeddings
 
