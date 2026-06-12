@@ -20,6 +20,15 @@ logger = logging.getLogger(__name__)
 
 _background_tasks: set[asyncio.Task] = set()
 
+async def _vector_tables_exist(db: AsyncSession) -> bool:
+    """The langchain tables are created lazily by PGVector on first insert;
+    raw-SQL readers must tolerate their absence (e.g. right after the
+    vector-store reset migration)."""
+    row = await db.execute(
+        text("SELECT to_regclass('langchain_pg_embedding') IS NOT NULL")
+    )
+    return bool(row.scalar())
+
 async def _index_and_generate_background(
     interview_id: UUID,
     text_content: str | None,
@@ -171,6 +180,9 @@ async def search_questions(
                 results.append(doc)
         return results
 
+    if not await _vector_tables_exist(db):
+        return []
+
     rows = (
         await db.execute(
             text(
@@ -281,6 +293,9 @@ async def delete_all_interview_questions(db: AsyncSession, interview_id: UUID) -
     Removes all vector store chunks for the interview, then lets the DB cascade
     handle the generated questions in the questions table.
     """
+    if not await _vector_tables_exist(db):
+        return True
+
     rows = (
         await db.execute(
             text(
@@ -372,6 +387,8 @@ async def delete_question_by_id(
         return False
 
     try:
+        if not await _vector_tables_exist(db):
+            return True
 
         res = await db.execute(
             text(
