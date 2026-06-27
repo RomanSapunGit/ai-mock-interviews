@@ -102,3 +102,7 @@ class Answer(Base):
 
     session: Mapped["Session"] = relationship("Session", back_populates="answers")
     question: Mapped["Question"] = relationship("Question", back_populates="answers")
+
+    @property
+    def question_text(self) -> str | None:
+        return self.question.text if self.question else None

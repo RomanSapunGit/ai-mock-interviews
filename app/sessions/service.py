@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from uuid import UUID
 
 from sqlalchemy import func, select
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession as DbSession
 
 from app.db.models import Answer, Interview, Question, Session
@@ -271,6 +272,7 @@ async def create_answer(
 async def list_answers(db: DbSession, session_id: UUID) -> list[Answer]:
     result = await db.execute(
         select(Answer)
+        .options(selectinload(Answer.question))
         .where(Answer.session_id == session_id)
         .order_by(Answer.created_at)
     )

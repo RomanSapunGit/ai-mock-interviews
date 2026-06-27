@@ -81,10 +81,19 @@ const SessionResults = () => {
         ) : (
           answers.map((ans, idx) => (
             <div key={ans.id} className="glass-card" style={{ padding: '2rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem', borderBottom: '1px solid var(--border)', paddingBottom: '1rem' }}>
-                <h3 style={{ margin: 0, color: 'var(--text-main)' }}>Question {idx + 1}</h3>
-                <div style={{ padding: '0.25rem 1rem', background: 'rgba(129, 140, 248, 0.1)', borderRadius: '100px', color: 'var(--primary)', fontWeight: 700 }}>
-                  Score: {ans.score || 'N/A'}/10
+              <div style={{ marginBottom: '1.5rem', borderBottom: '1px solid var(--border)', paddingBottom: '1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem' }}>
+                  <div style={{ flex: 1 }}>
+                    <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05rem' }}>Question {idx + 1}</span>
+                    {ans.question_text && (
+                      <p style={{ margin: '0.4rem 0 0', color: 'var(--text-main)', fontWeight: 500, lineHeight: 1.5 }}>
+                        {ans.question_text}
+                      </p>
+                    )}
+                  </div>
+                  <div style={{ flexShrink: 0, padding: '0.25rem 1rem', background: 'rgba(129, 140, 248, 0.1)', borderRadius: '100px', color: 'var(--primary)', fontWeight: 700 }}>
+                    Score: {ans.score || 'N/A'}/10
+                  </div>
                 </div>
               </div>
 

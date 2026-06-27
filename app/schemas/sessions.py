@@ -32,8 +32,11 @@ class AnswerRead(BaseModel):
     session_id: UUID
     question_id: UUID
     text: str | None
+    code: str | None
+    language: str | None
     score: float | None
     ai_feedback: str | None
+    question_text: str | None = None
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
