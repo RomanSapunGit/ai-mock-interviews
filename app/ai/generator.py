@@ -5,6 +5,17 @@ from app.ai.prompts import render
 
 logger = logging.getLogger(__name__)
 
+_TIME_LIMIT_DEFAULTS = {"easy": 900, "medium": 1500, "hard": 2100}
+
+
+def _resolve_time_limit_seconds(q: dict, difficulty: str | None) -> int:
+    try:
+        minutes = int(q["time_limit_minutes"])
+    except (KeyError, TypeError, ValueError):
+        return _TIME_LIMIT_DEFAULTS.get(difficulty or "medium", 1500)
+    return max(5, min(60, minutes)) * 60
+
+
 async def generate_questions(
     context_chunks: list[str],
     role: str | None,
@@ -56,15 +67,18 @@ async def generate_questions(
     result: list[dict] = []
     for q in questions:
         if isinstance(q, dict) and q.get("text"):
-            result.append(
-                {
-                    "text": str(q["text"]),
-                    "category": str(q.get("category", interview_type)),
-                    "difficulty": str(q.get("difficulty", difficulty or "medium")),
-                    "question_type": str(q.get("question_type", interview_type)),
-                    "starter_code": q.get("starter_code"),
-                    "examples": q.get("examples"),
-                }
-            )
+            entry = {
+                "text": str(q["text"]),
+                "category": str(q.get("category", interview_type)),
+                "difficulty": str(q.get("difficulty", difficulty or "medium")),
+                "question_type": str(q.get("question_type", interview_type)),
+                "starter_code": q.get("starter_code"),
+                "examples": q.get("examples"),
+            }
+            if entry["question_type"] == "coding":
+                hidden_spec = q.get("hidden_spec")
+                entry["hidden_spec"] = json.dumps(hidden_spec) if isinstance(hidden_spec, list) else None
+                entry["time_limit_seconds"] = _resolve_time_limit_seconds(q, difficulty)
+            result.append(entry)
 
     return result[:count]

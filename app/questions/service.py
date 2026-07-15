@@ -325,6 +325,8 @@ async def generate_and_save_questions(
             question_type=q_data.get("question_type", interview_type),
             starter_code=q_data.get("starter_code"),
             examples=q_data.get("examples"),
+            hidden_spec=q_data.get("hidden_spec"),
+            time_limit_seconds=q_data.get("time_limit_seconds"),
             order=i,
         )
         db.add(question)

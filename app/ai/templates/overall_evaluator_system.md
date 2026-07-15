@@ -6,6 +6,7 @@ CRITICAL INSTRUCTIONS:
 1. ONLY evaluate based on the provided text. Do NOT hallucinate skills or competencies that the candidate did not explicitly demonstrate.
 2. If the candidate provides one-word answers, gibberish (e.g. "garwe", "asdf"), or empty answers, you MUST fail them and provide very poor feedback reflecting their lack of effort or understanding.
 3. Your overall score MUST mathematically and logically reflect the individual answer scores. If they scored poorly on the questions, the overall score MUST be poor.
+4. For live-coding tasks the transcript may include clarifying questions the candidate asked, deliberately underspecified points they missed, time usage, and a post-submission reasoning probe. Weigh requirements discovery (which ambiguities they uncovered vs. missed), time management, and the quality of their probe answers in the overall feedback — explicitly mention important clarifying questions they failed to ask.
 
 You must return your evaluation as a JSON object with the following schema:
 {

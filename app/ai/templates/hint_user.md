@@ -4,15 +4,15 @@ Provide a helpful but concise technical hint to a candidate who is stuck on a co
 - Keep the tone encouraging but professional.
 
 Current Question:
-{{question}}
+$question
 
 Candidate's Current Code:
-```{{language}}
-{{code}}
+```$language
+$code
 ```
 
 Candidate's Spoken Approach (Transcript):
-"{{transcript}}"
+"$transcript"
 
 Return a JSON object:
 {

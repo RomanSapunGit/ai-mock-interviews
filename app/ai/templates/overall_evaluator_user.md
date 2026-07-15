@@ -1,15 +1,9 @@
-Role: {{ role }}
-Difficulty: {{ difficulty }}
+Role: $role
+Difficulty: $difficulty
 
 Here is the transcript of the interview session:
 
-{% for item in qa_pairs %}
----
-Question {{ loop.index }}: {{ item.question }}
-Answer: {{ item.answer }}
-Individual Score: {{ item.score }}/10
----
-{% endfor %}
+$qa_block
 
 Please provide the final overall score and comprehensive feedback for the entire session.
 

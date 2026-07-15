@@ -258,3 +258,28 @@
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+.timer-chip {
+  display: inline-block;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-main);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  padding: 0.35rem 1rem;
+  margin-bottom: 1rem;
+  letter-spacing: 0.05rem;
+}
+
+.timer-chip.overtime {
+  color: #f87171;
+  border-color: #f87171;
+  background: rgba(248, 113, 113, 0.08);
+  animation: pulse-glow 2s infinite;
+}
+
+.probe-card .btn-record {
+  margin-top: 1rem;
+}

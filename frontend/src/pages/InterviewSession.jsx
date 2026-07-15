@@ -2,9 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mic, Send, Square, CheckCircle, Loader2, Volume2, Eye, EyeOff } from 'lucide-react';
+import { MicVAD } from '@ricky0123/vad-web';
 import { sessionService } from '../services/sessionService';
 import { API_WS_URL } from '../config';
 import CodeEditor from '../components/CodeEditor';
+import { encodeWavFromFloat32 } from '../utils/wav';
 import './InterviewSession.css';
 
 const InterviewSession = () => {
@@ -24,6 +26,10 @@ const InterviewSession = () => {
   const [evalResult, setEvalResult] = useState(null);
   const [editableExamples, setEditableExamples] = useState('');
   const [audioBlocked, setAudioBlocked] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(null);
+  const [clarification, setClarification] = useState(null);
+  const [probeQuestion, setProbeQuestion] = useState(null);
+  const [probeRecording, setProbeRecording] = useState(false);
   const [started, setStarted] = useState(() => {
     return localStorage.getItem(`started_${sessionId}`) === 'true';
   });
@@ -34,6 +40,11 @@ const InterviewSession = () => {
   const userAudioChunksRef = useRef([]);
   const stoppingForPlaybackRef = useRef(false);
   const ws = useRef(null);
+  const vadRef = useRef(null);
+  const deadlineRef = useRef(null);
+  const codeSubmittedRef = useRef(false);
+  const probePendingRef = useRef(false);
+  const probeRecorderRef = useRef(null);
 
 
   const currentQuestionRef = useRef(currentQuestion);
@@ -51,6 +62,10 @@ const InterviewSession = () => {
     }
     return () => {
       if (ws.current) ws.current.close();
+      if (vadRef.current) {
+        vadRef.current.destroy();
+        vadRef.current = null;
+      }
     };
   }, [sessionId, started]);
 
@@ -79,6 +94,16 @@ const InterviewSession = () => {
     }, 2000);
     return () => clearInterval(timer);
   }, [sessionId, started, currentQuestion]);
+
+  useEffect(() => {
+    if (!currentQuestion || deadlineRef.current == null) return;
+    const timer = setInterval(() => {
+      if (deadlineRef.current != null) {
+        setTimeLeft(Math.round((deadlineRef.current - Date.now()) / 1000));
+      }
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [currentQuestion]);
 
   const connectWebSocket = () => {
     const token = localStorage.getItem('access_token') || '';
@@ -127,6 +152,10 @@ const InterviewSession = () => {
           currentQuestionRef.current = qData;
           aiAudioChunksRef.current = [];
           userAudioChunksRef.current = [];
+          if (vadRef.current) {
+            vadRef.current.destroy();
+            vadRef.current = null;
+          }
           if (audioRef.current) audioRef.current.src = '';
           setAnswer('');
           setSubmitting(false);
@@ -153,6 +182,17 @@ const InterviewSession = () => {
           setEditableExamples(savedExamples || qData.examples || '');
 
           setShowTranscript(false);
+          setClarification(null);
+          setProbeQuestion(null);
+          setProbeRecording(false);
+          probePendingRef.current = false;
+          if (data.time_limit_seconds != null) {
+            deadlineRef.current = Date.now() + (data.time_limit_seconds - (data.elapsed_seconds || 0)) * 1000;
+            setTimeLeft(Math.round((deadlineRef.current - Date.now()) / 1000));
+          } else {
+            deadlineRef.current = null;
+            setTimeLeft(null);
+          }
 
 
           if (qData.question_type === 'coding') {
@@ -184,6 +224,28 @@ const InterviewSession = () => {
           setSubmitting(false);
           aiAudioChunksRef.current = [];
           if (audioRef.current) audioRef.current.src = '';
+          break;
+
+        case 'clarification':
+          setClarification(data.text);
+          setSubmitting(false);
+          aiAudioChunksRef.current = [];
+          if (audioRef.current) audioRef.current.src = '';
+          break;
+
+        case 'probe_question':
+          setProbeQuestion({ text: data.text, index: data.index, total: data.total });
+          setSubmitting(false);
+          probePendingRef.current = true;
+          aiAudioChunksRef.current = [];
+          if (audioRef.current) audioRef.current.src = '';
+          break;
+
+        case 'probe_complete':
+          setProbeQuestion(null);
+          setProbeRecording(false);
+          probePendingRef.current = false;
+          setSubmitting(true);
           break;
 
         case 'evaluating_overall':
@@ -224,7 +286,11 @@ const InterviewSession = () => {
 
   const playAggregatedAudio = async () => {
     if (aiAudioChunksRef.current.length === 0) {
-
+      if (probePendingRef.current) {
+        probePendingRef.current = false;
+        startProbeRecording();
+        return;
+      }
       startRecording();
       return;
     }
@@ -235,6 +301,10 @@ const InterviewSession = () => {
     if (!isCoding) {
       stoppingForPlaybackRef.current = true;
       stopRecording();
+    } else if (vadRef.current) {
+      // Keep the recorder running, but stop listening for speech while the
+      // AI talks so it doesn't hear (and react to) its own voice.
+      vadRef.current.pause();
     }
     setIsPlaying(true);
     isPlayingRef.current = true;
@@ -253,8 +323,13 @@ const InterviewSession = () => {
 
         aiAudioChunksRef.current = [];
 
-        if (!isCoding) {
+        if (probePendingRef.current) {
+          probePendingRef.current = false;
+          startProbeRecording();
+        } else if (!isCoding) {
           startRecording();
+        } else if (vadRef.current) {
+          vadRef.current.start();
         }
       };
 
@@ -273,13 +348,18 @@ const InterviewSession = () => {
     if (audioRef.current && !isPlaying && aiAudioChunksRef.current.length > 0) {
       try {
         setIsPlaying(true);
+        if (vadRef.current) vadRef.current.pause();
         const blob = new Blob(aiAudioChunksRef.current, { type: 'audio/mpeg' });
         const url = URL.createObjectURL(blob);
         audioRef.current.src = url;
         audioRef.current.onended = () => {
           setIsPlaying(false);
           URL.revokeObjectURL(url);
-          startRecording();
+          if (vadRef.current) {
+            vadRef.current.start();
+          } else {
+            startRecording();
+          }
         };
         await audioRef.current.play();
       } catch (err) {
@@ -352,6 +432,14 @@ const InterviewSession = () => {
           return;
         }
 
+        // The code was already submitted via answer_code; flushing the buffered
+        // explanation audio would create a duplicate answer for this question.
+        if (codeSubmittedRef.current) {
+          codeSubmittedRef.current = false;
+          userAudioChunksRef.current = [];
+          return;
+        }
+
         const q = currentQuestionRef.current;
         if (ws.current && ws.current.readyState === WebSocket.OPEN && q) {
           if (q.question_type === 'coding') {
@@ -381,6 +469,37 @@ const InterviewSession = () => {
       mediaRecorder.start(250);
       setIsRecording(true);
       isRecordingRef.current = true;
+
+      if (q.question_type === 'coding') {
+        try {
+          vadRef.current = await MicVAD.new({
+            model: 'legacy',
+            baseAssetPath: '/vad/',
+            onnxWASMBasePath: '/vad/',
+            redemptionMs: 1200,
+            minSpeechMs: 250,
+            onSpeechEnd: (audio) => {
+              const liveQuestion = currentQuestionRef.current;
+              if (!liveQuestion || !ws.current || ws.current.readyState !== WebSocket.OPEN) return;
+              const wavBlob = encodeWavFromFloat32(audio, 16000);
+              const reader = new FileReader();
+              reader.onloadend = () => {
+                ws.current.send(JSON.stringify({
+                  type: 'vad_segment',
+                  question_id: liveQuestion.id,
+                  audio: reader.result.split(',')[1],
+                  code: window.currentCode,
+                  language: window.currentLanguage,
+                  examples: editableExamples,
+                }));
+              };
+              reader.readAsDataURL(wavBlob);
+            },
+          });
+        } catch (err) {
+          console.error('Voice-activity detection failed to start; live hints will be unavailable this question', err);
+        }
+      }
     } catch (err) {
       console.error('Failed to start recording', err);
 
@@ -396,6 +515,47 @@ const InterviewSession = () => {
       setIsRecording(false);
       isRecordingRef.current = false;
     }
+    if (vadRef.current) {
+      vadRef.current.destroy();
+      vadRef.current = null;
+    }
+  };
+
+  const startProbeRecording = async () => {
+    if (probeRecorderRef.current || !ws.current || ws.current.readyState !== WebSocket.OPEN) return;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      probeRecorderRef.current = recorder;
+
+      ws.current.send(JSON.stringify({ type: 'probe_audio_start', filename: 'probe.webm' }));
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0 && ws.current.readyState === WebSocket.OPEN) {
+          ws.current.send(event.data);
+        }
+      };
+      recorder.onstop = () => {
+        stream.getTracks().forEach(track => track.stop());
+        probeRecorderRef.current = null;
+        if (ws.current && ws.current.readyState === WebSocket.OPEN) {
+          ws.current.send(JSON.stringify({ type: 'probe_audio_end' }));
+        }
+      };
+
+      recorder.start(250);
+      setProbeRecording(true);
+    } catch (err) {
+      console.error('Failed to start probe recording', err);
+    }
+  };
+
+  const stopProbeRecording = () => {
+    if (probeRecorderRef.current && probeRecorderRef.current.state !== 'inactive') {
+      probeRecorderRef.current.stop();
+    }
+    setProbeRecording(false);
+    setSubmitting(true);
   };
 
   const handleTextSubmit = async (e) => {
@@ -422,6 +582,7 @@ const InterviewSession = () => {
       language: language,
       examples: editableExamples,
     }));
+    codeSubmittedRef.current = true;
     stopRecording();
   };
 
@@ -514,8 +675,16 @@ const InterviewSession = () => {
 
                     {audioBlocked && <p className="unblock-notice">Click the icon to hear the question</p>}
 
+                    {timeLeft != null && (
+                      <div className={`timer-chip ${timeLeft <= 0 ? 'overtime' : ''}`}>
+                        {timeLeft > 0
+                          ? `${Math.floor(timeLeft / 60)}:${String(timeLeft % 60).padStart(2, '0')}`
+                          : `OVERTIME +${Math.floor(-timeLeft / 60)}:${String(-timeLeft % 60).padStart(2, '0')}`}
+                      </div>
+                    )}
+
                     <h3 className="status-text">
-                      {isRecording ? 'Listening for your explanation...' : (isTranscribing ? 'Transcribing...' : (isPlaying ? 'Playing question...' : (submitting ? 'Evaluating your answer...' : 'Listen to the question')))}
+                      {probeQuestion ? (probeRecording ? 'Reasoning check — answer aloud...' : 'Reasoning check — listen to the question') : (isRecording ? 'Listening for your explanation...' : (isTranscribing ? 'Transcribing...' : (isPlaying ? 'Playing question...' : (submitting ? 'Evaluating your answer...' : 'Listen to the question'))))}
                     </h3>
 
                     <AnimatePresence>
@@ -565,7 +734,40 @@ const InterviewSession = () => {
                     </AnimatePresence>
 
                     <AnimatePresence>
-                      {feedback && feedback.length > 0 && !evalResult && (
+                      {probeQuestion && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="hint-alert glass-card probe-card"
+                        >
+                          <div className="hint-header">
+                            REASONING CHECK ({probeQuestion.index + 1}/{probeQuestion.total})
+                          </div>
+                          <p className="hint-content">{probeQuestion.text}</p>
+                          {probeRecording && (
+                            <button type="button" className="btn-record active" onClick={stopProbeRecording}>
+                              <Square size={20} /> Stop — I'm done answering
+                            </button>
+                          )}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+
+                    <AnimatePresence>
+                      {clarification && !evalResult && !probeQuestion && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="hint-alert glass-card"
+                        >
+                          <div className="hint-header">INTERVIEWER</div>
+                          <p className="hint-content">{clarification}</p>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+
+                    <AnimatePresence>
+                      {feedback && feedback.length > 0 && !evalResult && !probeQuestion && (
                         <motion.div
                           initial={{ opacity: 0, y: 20 }}
                           animate={{ opacity: 1, y: 0 }}
@@ -610,7 +812,7 @@ const InterviewSession = () => {
                     onChange={(c) => { window.currentCode = c; }}
                     onLanguageChange={(l) => { window.currentLanguage = l; }}
                     onSubmit={handleCodeSubmit}
-                    disabled={submitting || !currentQuestion}
+                    disabled={submitting || !currentQuestion || !!probeQuestion}
                   />
                   <div className="coding-examples glass-card">
                     <div className="examples-header">

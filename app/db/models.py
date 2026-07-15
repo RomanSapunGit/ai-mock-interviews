@@ -72,6 +72,10 @@ class Question(Base):
     question_type: Mapped[str] = mapped_column(String(50), nullable=False, default="behavioral")
     starter_code: Mapped[str | None] = mapped_column(Text, nullable=True)
     examples: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # JSON list of deliberately underspecified points with canonical interviewer
+    # answers: [{"point": str, "answer": str}]. Server-side only — never sent to the client.
+    hidden_spec: Mapped[str | None] = mapped_column(Text, nullable=True)
+    time_limit_seconds: Mapped[int | None] = mapped_column(nullable=True)
     # Set when this question was generated as a follow-up to another question;
     # also acts as the depth cap (follow-ups never spawn further follow-ups).
     parent_question_id: Mapped[UUID | None] = mapped_column(
@@ -98,6 +102,9 @@ class Answer(Base):
     language: Mapped[str | None] = mapped_column(String(50), nullable=True)
     score: Mapped[float | None] = mapped_column(nullable=True)
     ai_feedback: Mapped[str | None] = mapped_column(Text, nullable=True)
+    time_taken_seconds: Mapped[int | None] = mapped_column(nullable=True)
+    # JSON list of post-submission reasoning-probe exchanges: [{"question": str, "answer": str}]
+    probe_dialogue: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     session: Mapped["Session"] = relationship("Session", back_populates="answers")
@@ -106,3 +113,26 @@ class Answer(Base):
     @property
     def question_text(self) -> str | None:
         return self.question.text if self.question else None
+
+class Clarification(Base):
+    __tablename__ = "clarifications"
+
+    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
+    session_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), ForeignKey("sessions.id", ondelete="CASCADE"), nullable=False, index=True)
+    question_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), ForeignKey("questions.id", ondelete="CASCADE"), nullable=False, index=True)
+    asked_text: Mapped[str] = mapped_column(Text, nullable=False)
+    answer_text: Mapped[str] = mapped_column(Text, nullable=False)
+    # JSON list of hidden_spec indices this exchange resolved, e.g. [0, 2]
+    resolved_points: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+class QuestionTiming(Base):
+    __tablename__ = "question_timings"
+    __table_args__ = (
+        UniqueConstraint("session_id", "question_id", name="uq_question_timings_session_question"),
+    )
+
+    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
+    session_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), ForeignKey("sessions.id", ondelete="CASCADE"), nullable=False, index=True)
+    question_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), ForeignKey("questions.id", ondelete="CASCADE"), nullable=False, index=True)
+    served_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
