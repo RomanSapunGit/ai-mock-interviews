@@ -16,6 +16,13 @@ def _resolve_time_limit_seconds(q: dict, difficulty: str | None) -> int:
     return max(5, min(60, minutes)) * 60
 
 
+def _normalize_examples(examples) -> str | None:
+    # The template asks for a string, but some models return structured JSON anyway.
+    if examples is None or isinstance(examples, str):
+        return examples
+    return json.dumps(examples, indent=2)
+
+
 async def generate_questions(
     context_chunks: list[str],
     role: str | None,
@@ -73,7 +80,7 @@ async def generate_questions(
                 "difficulty": str(q.get("difficulty", difficulty or "medium")),
                 "question_type": str(q.get("question_type", interview_type)),
                 "starter_code": q.get("starter_code"),
-                "examples": q.get("examples"),
+                "examples": _normalize_examples(q.get("examples")),
             }
             if entry["question_type"] == "coding":
                 hidden_spec = q.get("hidden_spec")
