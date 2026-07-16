@@ -5,6 +5,14 @@ from app.ai.prompts import render
 
 logger = logging.getLogger(__name__)
 
+def _fast_llm_kwargs() -> dict:
+    model = settings.app.LLM_FAST_MODEL
+    # Gemini models think by default and bill the reasoning tokens as output;
+    # lightweight calls don't need them. Other providers reject the param.
+    if model.startswith("gemini"):
+        return {"model": model, "reasoning_effort": "none"}
+    return {"model": model}
+
 async def evaluate_answer(
     question: str,
     answer: str,
@@ -83,8 +91,8 @@ async def generate_followup_question(
         answer=answer,
     )
 
-    response = await settings.evaluator.client.chat.completions.create(
-        model=settings.app.LLM_MODEL,
+    response = await settings.evaluator.fast_client.chat.completions.create(
+        **_fast_llm_kwargs(),
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
@@ -181,8 +189,8 @@ async def classify_intent(transcript: str, question: str) -> str:
     )
 
     try:
-        response = await settings.evaluator.client.chat.completions.create(
-            model=settings.app.LLM_MODEL,
+        response = await settings.evaluator.fast_client.chat.completions.create(
+            **_fast_llm_kwargs(),
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
@@ -211,8 +219,8 @@ async def generate_hint(question: str, code: str, language: str, transcript: str
     )
 
     try:
-        response = await settings.evaluator.client.chat.completions.create(
-            model=settings.app.LLM_MODEL,
+        response = await settings.evaluator.fast_client.chat.completions.create(
+            **_fast_llm_kwargs(),
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
@@ -243,8 +251,8 @@ async def answer_clarification(question: str, hidden_spec: str, transcript: str)
     )
 
     try:
-        response = await settings.evaluator.client.chat.completions.create(
-            model=settings.app.LLM_MODEL,
+        response = await settings.evaluator.fast_client.chat.completions.create(
+            **_fast_llm_kwargs(),
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
@@ -289,8 +297,8 @@ async def generate_probe_questions(
     )
 
     try:
-        response = await settings.evaluator.client.chat.completions.create(
-            model=settings.app.LLM_MODEL,
+        response = await settings.evaluator.fast_client.chat.completions.create(
+            **_fast_llm_kwargs(),
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},

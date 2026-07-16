@@ -53,8 +53,8 @@ async def test_answer_clarification_parses_answer_and_points():
         return_value=_llm_response({"answer": "Yes, allow bursts up to 2x.", "resolved_points": [0, 2]})
     )
     with patch("app.ai.evaluator.settings") as settings_mock:
-        settings_mock.evaluator.client.chat.completions.create = create
-        settings_mock.app.LLM_MODEL = "test-model"
+        settings_mock.evaluator.fast_client.chat.completions.create = create
+        settings_mock.app.LLM_FAST_MODEL = "test-model"
         answer, resolved = await answer_clarification(
             question="Build a rate limiter.",
             hidden_spec='[{"point": "bursts", "answer": "up to 2x"}]',
@@ -69,8 +69,8 @@ async def test_answer_clarification_parses_answer_and_points():
 async def test_answer_clarification_falls_back_on_failure():
     create = AsyncMock(side_effect=RuntimeError("boom"))
     with patch("app.ai.evaluator.settings") as settings_mock:
-        settings_mock.evaluator.client.chat.completions.create = create
-        settings_mock.app.LLM_MODEL = "test-model"
+        settings_mock.evaluator.fast_client.chat.completions.create = create
+        settings_mock.app.LLM_FAST_MODEL = "test-model"
         answer, resolved = await answer_clarification("q", "[]", "t")
 
     assert resolved == []
@@ -81,8 +81,8 @@ async def test_answer_clarification_falls_back_on_failure():
 async def test_generate_probe_questions_caps_at_two_and_drops_blanks():
     create = AsyncMock(return_value=_llm_response({"questions": ["Why a deque?", "  ", "What breaks at scale?", "Extra?"]}))
     with patch("app.ai.evaluator.settings") as settings_mock:
-        settings_mock.evaluator.client.chat.completions.create = create
-        settings_mock.app.LLM_MODEL = "test-model"
+        settings_mock.evaluator.fast_client.chat.completions.create = create
+        settings_mock.app.LLM_FAST_MODEL = "test-model"
         questions = await generate_probe_questions("q", "code", "python", "t")
 
     assert questions == ["Why a deque?", "What breaks at scale?"]
@@ -92,6 +92,6 @@ async def test_generate_probe_questions_caps_at_two_and_drops_blanks():
 async def test_generate_probe_questions_empty_on_failure():
     create = AsyncMock(side_effect=RuntimeError("boom"))
     with patch("app.ai.evaluator.settings") as settings_mock:
-        settings_mock.evaluator.client.chat.completions.create = create
-        settings_mock.app.LLM_MODEL = "test-model"
+        settings_mock.evaluator.fast_client.chat.completions.create = create
+        settings_mock.app.LLM_FAST_MODEL = "test-model"
         assert await generate_probe_questions("q", "code", "python", "t") == []

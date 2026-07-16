@@ -61,6 +61,10 @@ class AppSettings:
 
     # LLM_MODEL wins when set; GROQ_MODEL kept as a fallback for existing envs.
     LLM_MODEL: str = getenv("LLM_MODEL", "") or getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+    # Cheap model for lightweight in-question calls (intent classification,
+    # hints, clarifications, probes, follow-ups) so they don't burn the main
+    # model's quota. Served by EvaluatorSettings.fast_client.
+    LLM_FAST_MODEL: str = getenv("LLM_FAST_MODEL", "llama-3.1-8b-instant")
     GROQ_WHISPER_MODEL: str = getenv("GROQ_WHISPER_MODEL", "whisper-large-v3-turbo")
     # Embeddings run on Google's API; the old EMBEDDING_MODEL /
     # EMBEDDING_DIMENSIONS vars are intentionally ignored so stale values in
@@ -129,7 +133,12 @@ class EvaluatorSettings:
     # equivalent), hence the separate client below.
     LLM_BASE_URL: str = getenv("LLM_BASE_URL", "") or "https://api.groq.com/openai/v1"
     LLM_API_KEY: str = getenv("LLM_API_KEY", "") or getenv("GROQ_API_KEY", "")
+    # Lightweight calls (LLM_FAST_MODEL) default to Groq even when the main
+    # client points at Gemini; override both to move them elsewhere.
+    LLM_FAST_BASE_URL: str = getenv("LLM_FAST_BASE_URL", "") or "https://api.groq.com/openai/v1"
+    LLM_FAST_API_KEY: str = getenv("LLM_FAST_API_KEY", "") or getenv("GROQ_API_KEY", "")
     _client: AsyncOpenAI | None = field(default=None, init=False, repr=False)
+    _fast_client: AsyncOpenAI | None = field(default=None, init=False, repr=False)
     _transcription_client: AsyncOpenAI | None = field(default=None, init=False, repr=False)
 
     @property
@@ -141,6 +150,16 @@ class EvaluatorSettings:
                 base_url=self.LLM_BASE_URL,
             )
         return self._client
+
+    @property
+    def fast_client(self) -> AsyncOpenAI:
+        if self._fast_client is None:
+            from openai import AsyncOpenAI
+            self._fast_client = AsyncOpenAI(
+                api_key=self.LLM_FAST_API_KEY,
+                base_url=self.LLM_FAST_BASE_URL,
+            )
+        return self._fast_client
 
     @property
     def transcription_client(self) -> AsyncOpenAI:
